@@ -1,0 +1,73 @@
+name: Deploy to ConoHa VPS
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      # フロントエンドのビルド
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      # バックエンドのビルド
+      - name: Build backend
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run build
+
+      # VPSへのデプロイ
+      - name: Deploy to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "frontend/dist,backend/dist,backend/package.json,backend/.env.example"
+          target: "/home/${{ secrets.VPS_USER }}/zoom-app"
+
+      # VPS上でデプロイスクリプトを実行
+      - name: Execute deployment script
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            cd /home/${{ secrets.VPS_USER }}/zoom-app
+            
+            # フロントエンドのデプロイ
+            sudo cp -r frontend/dist/* /var/www/zoom-frontend/ || true
+            
+            # バックエンドのデプロイ
+            cd backend
+            npm ci --production
+            pm2 restart zoom-backend || pm2 start dist/index.js --name zoom-backend
+            
+            # Nginxの再読み込み
+            sudo nginx -t && sudo systemctl reload nginx
+

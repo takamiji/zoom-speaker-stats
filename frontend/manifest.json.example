@@ -1,0 +1,18 @@
+{
+  "app_name": "発話者リアルタイム分析",
+  "version": "0.0.1",
+  "app_type": "iframe",
+  "app_url": "https://your-ngrok-url.ngrok-free.dev",
+  "app_desc": "参加者の発話状況をリアルタイムで可視化します。ホストのファシリテーション支援と参加者の自己調整を促進します。",
+  "app_icon": "https://your-ngrok-url.ngrok-free.dev/icon.png",
+  "app_contact": "your-email@example.com",
+  "app_category": "productivity",
+  "app_permissions": [
+    "getMeetingParticipants",
+    "onActiveSpeakerChange",
+    "onParticipantChange"
+  ],
+  "in_client_url": "https://starlessly-postdiphtheric-kaeden.ngrok-free.dev",
+  "redirect_url": "https://starlessly-postdiphtheric-kaeden.ngrok-free.dev/auth/callback"
+}
+

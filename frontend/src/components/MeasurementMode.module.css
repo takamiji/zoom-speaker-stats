@@ -1,0 +1,122 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.backButton {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.backButton:hover {
+  background: #f0f0f0;
+}
+
+.info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.meetingName {
+  font-size: 1.2rem;
+  margin: 0 0 0.25rem 0;
+  color: #333;
+}
+
+.roomName {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.startButton,
+.stopButton {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.startButton {
+  background: #4caf50;
+  color: white;
+}
+
+.startButton:hover {
+  background: #45a049;
+}
+
+.stopButton {
+  background: #f44336;
+  color: white;
+}
+
+.stopButton:hover {
+  background: #da190b;
+}
+
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 2rem;
+  background: #e8f5e9;
+  border-bottom: 1px solid #c8e6c9;
+  font-size: 0.9rem;
+}
+
+.recordingIndicator {
+  color: #f44336;
+  font-weight: bold;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.lastSaved {
+  color: #666;
+}
+
+.saveError {
+  color: #f44336;
+}
+
+.waiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #999;
+  font-size: 1.1rem;
+}
+
