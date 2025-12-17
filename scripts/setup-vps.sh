@@ -7,6 +7,14 @@ set -e
 
 echo "🔧 ConoHa VPSの初期セットアップを開始します..."
 
+# ファイアウォールの設定（重要）
+echo "🔥 ファイアウォールを設定しています..."
+sudo ufw allow 80/tcp
+sudo ufw allow 22/tcp
+sudo ufw --force enable
+sudo ufw reload
+sudo ufw status
+
 # Node.jsのインストール
 echo "📦 Node.jsをインストールしています..."
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -

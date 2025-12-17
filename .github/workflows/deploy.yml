@@ -46,7 +46,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          source: "frontend/dist,backend/dist,backend/package.json,backend/.env.example"
+          source: "frontend/dist,backend/dist,backend/package.json,backend/package-lock.json,backend/.env.example"
           target: "/home/${{ secrets.VPS_USER }}/zoom-app"
 
       # VPS上でデプロイスクリプトを実行

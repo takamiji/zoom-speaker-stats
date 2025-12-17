@@ -13,9 +13,23 @@
 
 ## 🚀 方法 1: 手動デプロイ
 
+### ステップ 0: ConoHa VPS のセキュリティグループ設定（重要）
+
+**ConoHa VPS のコントロールパネルで設定**:
+
+1. ConoHa VPS のコントロールパネルにログイン
+2. 対象の VPS を選択
+3. 「セキュリティグループ」または「ファイアウォール」設定を開く
+4. 以下のセキュリティグループを設定:
+
+   - **IPv4v6-SSH**: ポート 22（SSH 接続用）
+   - **IPv4v6-Web**: ポート 80（HTTP 接続用）
+
+**注意**: これらのセキュリティグループを設定しないと、SSH 接続や HTTP 接続ができません。
+
 ### ステップ 1: VPS の初期セットアップ
 
-**VPS 上で実行**:
+**VPS に SSH 接続して実行**:
 
 ```bash
 # セットアップスクリプトをVPSに転送
@@ -32,6 +46,12 @@ chmod +x setup-vps.sh
 または、手動でセットアップ:
 
 ```bash
+# ファイアウォールの設定（重要）
+# ポート80（HTTP）を開放
+sudo ufw allow 80/tcp
+sudo ufw reload
+sudo ufw status
+
 # Node.jsのインストール
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
@@ -281,6 +301,12 @@ chmod +x ~/setup-vps.sh
 または、**手動でセットアップ**:
 
 ```bash
+# ファイアウォールの設定（重要）
+# ポート80（HTTP）を開放
+sudo ufw allow 80/tcp
+sudo ufw reload
+sudo ufw status
+
 # Node.jsのインストール
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
@@ -516,6 +542,38 @@ ssh user@your-server-ip "cd ~/zoom-app/backend && npm ci --production && pm2 res
 
 ## 🐛 トラブルシューティング
 
+### 接続できない（リモートサーバーに接続できません）
+
+**原因 1: ConoHa セキュリティグループが設定されていない**
+
+ConoHa VPS のコントロールパネルで以下を確認:
+
+- **IPv4v6-SSH**: ポート 22 が開放されているか
+- **IPv4v6-Web**: ポート 80 が開放されているか
+
+**原因 2: ファイアウォールでポート 80 が閉じている**
+
+```bash
+# ファイアウォールの状態を確認
+sudo ufw status
+
+# ポート80を開放
+sudo ufw allow 80/tcp
+sudo ufw reload
+sudo ufw status
+```
+
+**原因 3: Nginx が起動していない**
+
+```bash
+# Nginxの状態を確認
+sudo systemctl status nginx
+
+# Nginxを起動
+sudo systemctl start nginx
+sudo systemctl enable nginx
+```
+
 ### フロントエンドが表示されない
 
 ```bash
@@ -524,6 +582,9 @@ sudo tail -f /var/log/nginx/error.log
 
 # ファイルの権限を確認
 ls -la /var/www/zoom-frontend/
+
+# Nginx設定ファイルの構文を確認
+sudo nginx -t
 ```
 
 ### バックエンドが起動しない
