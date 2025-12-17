@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useZoomSpeakerStats } from '../hooks/useZoomSpeakerStats';
 import { SpeakerDashboard } from './SpeakerDashboard';
 import { saveRoomStats } from '../utils/api';
-import type { ParticipantStats } from '../types';
 import styles from './MeasurementMode.module.css';
 
 interface MeasurementModeProps {
@@ -23,7 +22,7 @@ export function MeasurementMode({
   roomName,
   onBack,
 }: MeasurementModeProps) {
-  const { participants, currentSpeaker, isLoading, error } = useZoomSpeakerStats();
+  const { participants, isLoading, error } = useZoomSpeakerStats();
   const [isRecording, setIsRecording] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);

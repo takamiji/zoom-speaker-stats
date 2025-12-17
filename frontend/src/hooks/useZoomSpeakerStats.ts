@@ -28,7 +28,6 @@ export function useZoomSpeakerStats() {
 
   const intervalRef = useRef<number | null>(null);
   const previousSpeakerIdRef = useRef<string | null>(null);
-  const speakingStartTimeRef = useRef<Map<string, number>>(new Map());
 
   /**
    * ログを追加する
@@ -112,7 +111,6 @@ export function useZoomSpeakerStats() {
     setSpeechSummaries((prev) => [speechSummary, ...prev.slice(0, 9)]); // 最新10件を保持
     
     // イベントログにも追加
-    const timestamp = new Date().toLocaleTimeString('ja-JP');
     addLog(`${displayName} の発話要約: ${summary}`);
   }, [generateMockTranscript, generateMockSummary, addLog]);
 
@@ -239,7 +237,7 @@ export function useZoomSpeakerStats() {
               addLog('モックSDK: 設定完了');
             },
             getMeetingParticipants: async () => mockParticipants,
-            onActiveSpeakerChange: (callback) => {
+            onActiveSpeakerChange: (callback: (event: { activeSpeakerId?: string | null }) => void) => {
               addLog('モックSDK: アクティブスピーカー変更イベントを購読');
               // 5秒ごとにスピーカーを切り替える（テスト用）
               let currentIndex = 0;
@@ -253,7 +251,7 @@ export function useZoomSpeakerStats() {
                 }
               }, 5000);
             },
-            onParticipantChange: (callback) => {
+            onParticipantChange: (_callback: () => void) => {
               addLog('モックSDK: 参加者変更イベントを購読');
             },
           } as any;
@@ -261,10 +259,18 @@ export function useZoomSpeakerStats() {
           throw new Error('Zoom Apps SDKが読み込まれていません。Zoomミーティング内でアプリとして起動してください。');
         }
 
+        // この時点でzoomSdkは必ず定義されている
+        if (!zoomSdk) {
+          throw new Error('Zoom Apps SDKが読み込まれていません。');
+        }
+
+        // zoomSdkはこの時点で必ず定義されているため、型アサーションを使用
+        const sdk = zoomSdk;
+
         // Zoom Apps SDKの初期化
         // 注意: 実際のZoom環境では、manifest.jsonとngrokなどの設定が必要です
         // config()で必要な権限を設定
-        await zoomSdk.config({
+        await sdk.config({
           capabilities: [
             'getMeetingParticipants',
             'onActiveSpeakerChange',
@@ -277,7 +283,7 @@ export function useZoomSpeakerStats() {
         try {
           // 注意: 実際のAPI名は getMeetingParticipants または getParticipants の可能性があります
           // ドキュメントに合わせて調整してください
-          const getParticipants = zoomSdk.getMeetingParticipants || zoomSdk.getParticipants;
+          const getParticipants = sdk.getMeetingParticipants || sdk.getParticipants;
           const participantsList = getParticipants ? await getParticipants() : [];
           addLog(`参加者数: ${participantsList.length}人`);
 
@@ -307,16 +313,16 @@ export function useZoomSpeakerStats() {
         // アクティブスピーカーの変更イベントを購読
         try {
           // 注意: 実際のAPI名は onActiveSpeakerChange または on('activeSpeakerChange') の可能性があります
-          if (zoomSdk.onActiveSpeakerChange) {
-            zoomSdk.onActiveSpeakerChange((event: { activeSpeakerId?: string | null; activeSpeaker?: string | null }) => {
+          if (sdk.onActiveSpeakerChange) {
+            sdk.onActiveSpeakerChange((event: { activeSpeakerId?: string | null; activeSpeaker?: string | null }) => {
               if (mounted) {
                 const speakerId = event.activeSpeakerId || event.activeSpeaker || null;
                 handleActiveSpeakerChange(speakerId);
               }
             });
             addLog('アクティブスピーカー変更イベントを購読しました');
-          } else if (zoomSdk.on) {
-            await zoomSdk.on('activeSpeakerChange', (payload: { activeSpeakerId: string | null }) => {
+          } else if (sdk.on) {
+            await sdk.on('activeSpeakerChange', (payload: { activeSpeakerId: string | null }) => {
               if (mounted) {
                 handleActiveSpeakerChange(payload.activeSpeakerId);
               }
@@ -333,7 +339,7 @@ export function useZoomSpeakerStats() {
           const updateParticipants = async () => {
             if (mounted) {
               try {
-                const getParticipants = zoomSdk.getMeetingParticipants || zoomSdk.getParticipants;
+                const getParticipants = sdk.getMeetingParticipants || sdk.getParticipants;
                 const participantsList = getParticipants ? await getParticipants() : [];
                 if (Array.isArray(participantsList)) {
                   updateParticipantStats((prev) => {
@@ -372,8 +378,8 @@ export function useZoomSpeakerStats() {
             }
           };
 
-          if (zoomSdk.onParticipantChange) {
-            zoomSdk.onParticipantChange(updateParticipants);
+          if (sdk.onParticipantChange) {
+            sdk.onParticipantChange(updateParticipants);
             addLog('参加者変更イベントを購読しました');
           } else if (zoomSdk.on) {
             await zoomSdk.on('participantChange', updateParticipants);
