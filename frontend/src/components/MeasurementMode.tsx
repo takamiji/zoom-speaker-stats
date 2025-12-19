@@ -267,7 +267,10 @@ export function MeasurementMode({
       )}
 
       {isRecording ? (
-        <SpeakerDashboard groupData={groupData} />
+        <SpeakerDashboard
+          groupData={groupData}
+          selectedGroupId={selectedGroupId}
+        />
       ) : (
         <div className={styles.waiting}>
           <p>「計測開始」ボタンを押して計測を開始してください</p>

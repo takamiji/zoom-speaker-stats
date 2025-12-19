@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { useZoomSpeakerStats } from "../hooks/useZoomSpeakerStats";
 import { ParticipantTable } from "./ParticipantTable";
 import { OverallStats } from "./OverallStats";
-import { findMemberByName, type GroupData } from "../utils/csvParser";
+import {
+  findMemberByName,
+  getGroupMembers,
+  type GroupData,
+  type GroupMember,
+} from "../utils/csvParser";
 import styles from "./SpeakerDashboard.module.css";
 
 interface SpeakerDashboardProps {
@@ -105,6 +110,42 @@ export function SpeakerDashboard({
         })()
       : null;
 
+  // 選択したグループのメンバーを取得（安全に）
+  let selectedGroupMembers: GroupMember[] = [];
+  if (
+    selectedGroupId !== null &&
+    selectedGroupId !== undefined &&
+    typeof selectedGroupId === "number" &&
+    !isNaN(selectedGroupId) &&
+    groupData !== null &&
+    groupData !== undefined
+  ) {
+    try {
+      selectedGroupMembers = getGroupMembers(selectedGroupId, groupData);
+      console.log(
+        "[SpeakerDashboard] グループメンバー取得:",
+        "groupId:",
+        selectedGroupId,
+        "members:",
+        selectedGroupMembers.length,
+        "名",
+        "groupData keys:",
+        Object.keys(groupData)
+      );
+    } catch (err) {
+      console.error("グループメンバーの取得エラー:", err);
+      selectedGroupMembers = [];
+    }
+  } else {
+    console.log(
+      "[SpeakerDashboard] グループメンバー取得スキップ:",
+      "selectedGroupId:",
+      selectedGroupId,
+      "groupData:",
+      groupData ? "存在" : "null"
+    );
+  }
+
   return (
     <div className={styles.container}>
       {/* 話者の詳細情報（上部に表示） */}
@@ -156,31 +197,27 @@ export function SpeakerDashboard({
       </section>
 
       {/* 選択したグループのメンバー一覧 */}
-      {selectedGroupId &&
-        groupData &&
-        getGroupMembers(selectedGroupId, groupData).length > 0 && (
-          <section className={styles.groupMembersSection}>
-            <h3 className={styles.groupMembersTitle}>
-              グループ {selectedGroupId} のメンバー (
-              {getGroupMembers(selectedGroupId, groupData).length}名)
-            </h3>
-            <div className={styles.groupMembersList}>
-              {getGroupMembers(selectedGroupId, groupData).map(
-                (member, index) => (
-                  <div key={index} className={styles.memberCard}>
-                    <div className={styles.memberName}>{member.名前}</div>
-                    <div className={styles.memberDetails}>
-                      <span>国籍: {member.国籍}</span>
-                      <span>学年: {member.学年}</span>
-                      <span>学部: {member.学部}</span>
-                      <span>興味関心: {member.興味関心キーワード}</span>
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          </section>
-        )}
+      {selectedGroupMembers.length > 0 && (
+        <section className={styles.groupMembersSection}>
+          <h3 className={styles.groupMembersTitle}>
+            グループ {selectedGroupId} のメンバー ({selectedGroupMembers.length}
+            名)
+          </h3>
+          <div className={styles.groupMembersList}>
+            {selectedGroupMembers.map((member, index) => (
+              <div key={index} className={styles.memberCard}>
+                <div className={styles.memberName}>{member.名前}</div>
+                <div className={styles.memberDetails}>
+                  <span>国籍: {member.国籍}</span>
+                  <span>学年: {member.学年}</span>
+                  <span>学部: {member.学部}</span>
+                  <span>興味関心: {member.興味関心キーワード}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ログ */}
       {logs.length > 0 && (
