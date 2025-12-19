@@ -2,12 +2,20 @@ import { useState, useEffect } from "react";
 import { useZoomSpeakerStats } from "../hooks/useZoomSpeakerStats";
 import { ParticipantTable } from "./ParticipantTable";
 import { OverallStats } from "./OverallStats";
+import { findMemberByName, type GroupData } from "../utils/csvParser";
 import styles from "./SpeakerDashboard.module.css";
+
+interface SpeakerDashboardProps {
+  groupData?: GroupData | null;
+}
 
 /**
  * 発話者リアルタイム分析ダッシュボード
  */
-export function SpeakerDashboard() {
+export function SpeakerDashboard({
+  groupData,
+  selectedGroupId,
+}: SpeakerDashboardProps = {}) {
   const {
     participants,
     currentSpeaker,
@@ -84,8 +92,31 @@ export function SpeakerDashboard() {
     );
   }
 
+  // 話者の詳細情報を取得
+  const memberInfo =
+    groupData && currentSpeaker
+      ? (() => {
+          try {
+            return findMemberByName(currentSpeaker.displayName, groupData);
+          } catch (err) {
+            console.error("話者情報の取得エラー:", err);
+            return null;
+          }
+        })()
+      : null;
+
   return (
     <div className={styles.container}>
+      {/* 話者の詳細情報（上部に表示） */}
+      {memberInfo && (
+        <div className={styles.speakerInfoBar}>
+          <span>国籍: {memberInfo.国籍}</span>
+          <span>学年: {memberInfo.学年}</span>
+          <span>学部: {memberInfo.学部}</span>
+          <span>興味関心: {memberInfo.興味関心キーワード}</span>
+        </div>
+      )}
+
       {/* 現在話している人 */}
       <section className={styles.currentSpeakerSection}>
         {currentSpeaker ? (
@@ -123,6 +154,33 @@ export function SpeakerDashboard() {
           currentSpeakerId={currentSpeakerId}
         />
       </section>
+
+      {/* 選択したグループのメンバー一覧 */}
+      {selectedGroupId &&
+        groupData &&
+        getGroupMembers(selectedGroupId, groupData).length > 0 && (
+          <section className={styles.groupMembersSection}>
+            <h3 className={styles.groupMembersTitle}>
+              グループ {selectedGroupId} のメンバー (
+              {getGroupMembers(selectedGroupId, groupData).length}名)
+            </h3>
+            <div className={styles.groupMembersList}>
+              {getGroupMembers(selectedGroupId, groupData).map(
+                (member, index) => (
+                  <div key={index} className={styles.memberCard}>
+                    <div className={styles.memberName}>{member.名前}</div>
+                    <div className={styles.memberDetails}>
+                      <span>国籍: {member.国籍}</span>
+                      <span>学年: {member.学年}</span>
+                      <span>学部: {member.学部}</span>
+                      <span>興味関心: {member.興味関心キーワード}</span>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </section>
+        )}
 
       {/* ログ */}
       {logs.length > 0 && (

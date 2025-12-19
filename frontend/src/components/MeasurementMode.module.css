@@ -95,7 +95,8 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -190,7 +191,7 @@
   font-size: 0.875rem;
   color: #666;
   border-bottom: 1px solid #e0e0e0;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -204,3 +205,130 @@
   font-weight: 500;
 }
 
+/* CSVファイルアップロードセクション */
+.csvSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.csvUpload {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fileLabel {
+  padding: 0.5rem 1rem;
+  background: #2196f3;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+  border: none;
+  display: inline-block;
+}
+
+.fileLabel:hover {
+  background: #1976d2;
+}
+
+.fileInput {
+  display: none;
+}
+
+.csvError {
+  color: #f44336;
+  font-size: 0.875rem;
+}
+
+.groupSelector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.groupLabel {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.groupSelect {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: white;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.groupSelect:hover {
+  border-color: #999;
+}
+
+.groupSelect:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+/* グループメンバー一覧セクション */
+.groupMembersSection {
+  padding: 1rem 2rem;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.groupMembersTitle {
+  font-size: 1rem;
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-weight: 600;
+}
+
+.groupMembersList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.memberCard {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s;
+}
+
+.memberCard:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.memberName {
+  font-weight: bold;
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.memberDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.memberDetails span {
+  line-height: 1.5;
+}

@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
-import { useZoomSpeakerStats } from '../hooks/useZoomSpeakerStats';
-import { SpeakerDashboard } from './SpeakerDashboard';
-import { saveRoomStats } from '../utils/api';
-import styles from './MeasurementMode.module.css';
+import { useState, useEffect } from "react";
+import { useZoomSpeakerStats } from "../hooks/useZoomSpeakerStats";
+import { SpeakerDashboard } from "./SpeakerDashboard";
+import { saveRoomStats } from "../utils/api";
+import {
+  parseCSV,
+  getAvailableGroupIds,
+  type GroupData,
+} from "../utils/csvParser";
+import styles from "./MeasurementMode.module.css";
 
 interface MeasurementModeProps {
   meetingId: string;
@@ -26,20 +31,25 @@ export function MeasurementMode({
   const [isRecording, setIsRecording] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [groupData, setGroupData] = useState<GroupData | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   // 10秒ごとにDBに保存
   useEffect(() => {
     if (!isRecording) return;
-    
+
     // 参加者が0人の場合は保存しない（エラーを表示しない）
     if (participants.length === 0) {
-      console.log('[MeasurementMode] 参加者が0人のため、保存をスキップします');
+      console.log("[MeasurementMode] 参加者が0人のため、保存をスキップします");
       return;
     }
 
     const intervalId = setInterval(async () => {
       try {
-        console.log(`[MeasurementMode] 定期保存開始: 参加者数=${participants.length}`);
+        console.log(
+          `[MeasurementMode] 定期保存開始: 参加者数=${participants.length}`
+        );
         await saveRoomStats({
           roomId,
           meetingId,
@@ -50,8 +60,9 @@ export function MeasurementMode({
         setSaveError(null);
         console.log(`[MeasurementMode] 定期保存成功`);
       } catch (err) {
-        console.error('[MeasurementMode] データ保存エラー:', err);
-        const errorMessage = err instanceof Error ? err.message : 'データの保存に失敗しました';
+        console.error("[MeasurementMode] データ保存エラー:", err);
+        const errorMessage =
+          err instanceof Error ? err.message : "データの保存に失敗しました";
         setSaveError(errorMessage);
         // エラーをログに記録（ユーザーには表示しない）
       }
@@ -70,7 +81,7 @@ export function MeasurementMode({
           participants: participants,
           recordedAt: Date.now(),
         }).catch((err) => {
-          console.error('最終保存エラー:', err);
+          console.error("最終保存エラー:", err);
         });
       }
     };
@@ -92,11 +103,52 @@ export function MeasurementMode({
         });
         setLastSavedAt(Date.now());
       } catch (err) {
-        console.error('最終保存エラー:', err);
-        setSaveError(err instanceof Error ? err.message : 'データの保存に失敗しました');
+        console.error("最終保存エラー:", err);
+        setSaveError(
+          err instanceof Error ? err.message : "データの保存に失敗しました"
+        );
       }
     }
     setIsRecording(false);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const csvText = e.target?.result as string;
+        if (!csvText) {
+          throw new Error("ファイルの内容が空です");
+        }
+        const parsedData = parseCSV(csvText);
+        setGroupData(parsedData);
+        setCsvError(null);
+
+        // 最初のグループを自動選択
+        const groupIds = getAvailableGroupIds(parsedData);
+        if (groupIds.length > 0) {
+          setSelectedGroupId(groupIds[0]);
+        }
+      } catch (err) {
+        console.error("CSVパースエラー:", err);
+        setCsvError(
+          err instanceof Error
+            ? err.message
+            : "CSVファイルの読み込みに失敗しました"
+        );
+        setGroupData(null);
+        setSelectedGroupId(null);
+      }
+    };
+    reader.onerror = () => {
+      setCsvError("ファイルの読み込みに失敗しました");
+      setGroupData(null);
+      setSelectedGroupId(null);
+    };
+    reader.readAsText(file, "UTF-8");
   };
 
   if (isLoading) {
@@ -112,16 +164,20 @@ export function MeasurementMode({
       <div className={styles.container}>
         <div className={styles.error}>
           <h2>エラーが発生しました</h2>
-          <p style={{ whiteSpace: 'pre-wrap' }}>{error}</p>
+          <p style={{ whiteSpace: "pre-wrap" }}>{error}</p>
         </div>
         {/* イベントログを表示 */}
         {logs.length > 0 && (
           <div className={styles.logSection}>
             <h3>イベントログ（デバッグ情報）</h3>
             <div className={styles.logNote}>
-              <p>💡 <strong>開発者ツールについて:</strong></p>
+              <p>
+                💡 <strong>開発者ツールについて:</strong>
+              </p>
               <p>Zoomアプリ内では開発者ツール（F12）が開けません。</p>
-              <p>ログはこのセクションで確認できます。また、ブラウザで直接URLを開いた場合は、コンソール（F12）でも確認できます。</p>
+              <p>
+                ログはこのセクションで確認できます。また、ブラウザで直接URLを開いた場合は、コンソール（F12）でも確認できます。
+              </p>
             </div>
             <div className={styles.logContainer}>
               {logs.map((log, index) => (
@@ -159,12 +215,49 @@ export function MeasurementMode({
         </div>
       </div>
 
+      {/* CSVファイルアップロードとグループ選択 */}
+      <div className={styles.csvSection}>
+        <div className={styles.csvUpload}>
+          <label htmlFor="csvFile" className={styles.fileLabel}>
+            CSVファイルを選択
+          </label>
+          <input
+            id="csvFile"
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            className={styles.fileInput}
+          />
+          {csvError && <span className={styles.csvError}>⚠️ {csvError}</span>}
+        </div>
+
+        {groupData && (
+          <div className={styles.groupSelector}>
+            <label htmlFor="groupSelect" className={styles.groupLabel}>
+              グループ:
+            </label>
+            <select
+              id="groupSelect"
+              value={selectedGroupId || ""}
+              onChange={(e) => setSelectedGroupId(parseInt(e.target.value, 10))}
+              className={styles.groupSelect}
+            >
+              {getAvailableGroupIds(groupData).map((groupId) => (
+                <option key={groupId} value={groupId}>
+                  グループ {groupId}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       {isRecording && (
         <div className={styles.statusBar}>
           <span className={styles.recordingIndicator}>● 計測中</span>
           {lastSavedAt && (
             <span className={styles.lastSaved}>
-              最終保存: {new Date(lastSavedAt).toLocaleTimeString('ja-JP')}
+              最終保存: {new Date(lastSavedAt).toLocaleTimeString("ja-JP")}
             </span>
           )}
           {saveError && (
@@ -174,7 +267,7 @@ export function MeasurementMode({
       )}
 
       {isRecording ? (
-        <SpeakerDashboard />
+        <SpeakerDashboard groupData={groupData} />
       ) : (
         <div className={styles.waiting}>
           <p>「計測開始」ボタンを押して計測を開始してください</p>
@@ -183,4 +276,3 @@ export function MeasurementMode({
     </div>
   );
 }
-
