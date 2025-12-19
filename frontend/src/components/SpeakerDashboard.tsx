@@ -1,20 +1,47 @@
-import { useZoomSpeakerStats } from '../hooks/useZoomSpeakerStats';
-import { ParticipantTable } from './ParticipantTable';
-import { OverallStats } from './OverallStats';
-import styles from './SpeakerDashboard.module.css';
+import { useState, useEffect } from "react";
+import { useZoomSpeakerStats } from "../hooks/useZoomSpeakerStats";
+import { ParticipantTable } from "./ParticipantTable";
+import { OverallStats } from "./OverallStats";
+import styles from "./SpeakerDashboard.module.css";
 
 /**
  * 発話者リアルタイム分析ダッシュボード
  */
 export function SpeakerDashboard() {
-  const { participants, currentSpeaker, currentSpeakerId, isLoading, error, logs, speechSummaries } = useZoomSpeakerStats();
+  const {
+    participants,
+    currentSpeaker,
+    currentSpeakerId,
+    isLoading,
+    error,
+    logs,
+  } = useZoomSpeakerStats();
+
+  // 1秒ごとに再レンダリングして時間表示を更新
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   /**
-   * 現在話している人の経過時間を計算
+   * 現在話している人の経過時間を計算（1秒単位）
    */
   const getCurrentSpeakingTime = (): number => {
-    if (currentSpeaker && currentSpeaker.isSpeaking && currentSpeaker.lastStartedSpeakingAt) {
-      return currentSpeaker.totalSpeakingMs + (Date.now() - currentSpeaker.lastStartedSpeakingAt);
+    if (
+      currentSpeaker &&
+      currentSpeaker.isSpeaking &&
+      currentSpeaker.lastStartedSpeakingAt
+    ) {
+      const currentDuration =
+        currentTime - currentSpeaker.lastStartedSpeakingAt;
+      // 1秒単位に丸める
+      const roundedDuration = Math.floor(currentDuration / 1000) * 1000;
+      return currentSpeaker.totalSpeakingMs + roundedDuration;
     }
     return currentSpeaker?.totalSpeakingMs || 0;
   };
@@ -26,7 +53,9 @@ export function SpeakerDashboard() {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes.toString().padStart(2, "0")}:${seconds
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   if (isLoading) {
@@ -66,7 +95,9 @@ export function SpeakerDashboard() {
               <span className={styles.pulse}></span>
             </div>
             <div className={styles.speakerInfo}>
-              <h2 className={styles.speakerName}>{currentSpeaker.displayName}</h2>
+              <h2 className={styles.speakerName}>
+                {currentSpeaker.displayName}
+              </h2>
               <p className={styles.speakerTime}>
                 発話時間: {formatTime(getCurrentSpeakingTime())}
               </p>
@@ -87,47 +118,25 @@ export function SpeakerDashboard() {
       {/* 参加者統計テーブル */}
       <section className={styles.tableSection}>
         <h3 className={styles.sectionTitle}>参加者ごとの発話統計</h3>
-        <ParticipantTable participants={participants} currentSpeakerId={currentSpeakerId} />
+        <ParticipantTable
+          participants={participants}
+          currentSpeakerId={currentSpeakerId}
+        />
       </section>
 
       {/* ログ */}
-      {(logs.length > 0 || speechSummaries.length > 0) && (
+      {logs.length > 0 && (
         <section className={styles.logSection}>
           <h3 className={styles.sectionTitle}>イベントログ</h3>
           <div className={styles.logContainer}>
-            {/* 通常のイベントログ */}
             {logs.map((log, index) => (
               <div key={`log-${index}`} className={styles.logItem}>
                 {log}
               </div>
             ))}
-            
-            {/* 発話要約（モック） */}
-            {speechSummaries.map((summary, index) => {
-              const timestamp = new Date(summary.timestamp).toLocaleTimeString('ja-JP');
-              return (
-                <div key={`summary-${index}`} className={styles.summaryItem}>
-                  <div className={styles.summaryHeader}>
-                    <span className={styles.summaryTimestamp}>[{timestamp}]</span>
-                    <span className={styles.summarySpeaker}>{summary.displayName}</span>
-                    <span className={styles.summaryLabel}>発話要約</span>
-                  </div>
-                  <div className={styles.summaryContent}>
-                    <div className={styles.summaryText}>
-                      <strong>要約:</strong> {summary.summary}
-                    </div>
-                    <details className={styles.summaryDetails}>
-                      <summary className={styles.summaryToggle}>文字起こしを表示</summary>
-                      <div className={styles.transcriptText}>{summary.transcript}</div>
-                    </details>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </section>
       )}
     </div>
   );
 }
-

@@ -551,12 +551,14 @@ stop
 1. **依存関係のインストール**
 
    ```bash
+   cd frontend
    npm install
    ```
 
 2. **開発サーバーの起動**
 
    ```bash
+   cd frontend
    npm run dev
    ```
 
@@ -567,26 +569,31 @@ stop
 
 1. **`.env` ファイルを作成**
 
+   `frontend/.env` ファイルを作成：
+
    ```
    VITE_USE_MOCK_DATA=true
    ```
 
 2. **開発サーバーを再起動**
    ```bash
+   cd frontend
    npm run dev
    ```
 
 ### ビルド
 
 ```bash
+cd frontend
 npm run build
 ```
 
-ビルド結果は `dist/` ディレクトリに出力されます。
+ビルド結果は `frontend/dist/` ディレクトリに出力されます。
 
 ### プレビュー
 
 ```bash
+cd frontend
 npm run preview
 ```
 
@@ -603,14 +610,15 @@ npm run preview
 **方法 A: セットアップスクリプトを使用（推奨）**
 
 ```bash
+cd frontend
 npm run deploy:setup
 ```
 
-このコマンドを実行すると、`manifest.json.example` から `manifest.json` が作成されます。
+このコマンドを実行すると、`frontend/manifest.json.example` から `frontend/manifest.json` が作成されます。
 
 **方法 B: 手動で作成**
 
-プロジェクトルートに `manifest.json` を作成し、`manifest.json.example` をコピーして編集してください。
+`frontend/manifest.json` を作成し、`frontend/manifest.json.example` をコピーして編集してください。
 
 **manifest.json の編集項目**:
 
@@ -621,10 +629,11 @@ npm run deploy:setup
 **デプロイ前チェック**:
 
 ```bash
+cd frontend
 npm run deploy:check
 ```
 
-このコマンドで、manifest.json の設定が正しいか確認できます。
+このコマンドで、`frontend/manifest.json` の設定が正しいか確認できます。
 
 #### 2. ngrok のセットアップ
 
@@ -655,7 +664,7 @@ Zoom Apps は以下の要件があるため、ngrok などのトンネリング�
 
 ngrok 経由でアクセスする場合、Vite の開発サーバーがそのホストからのアクセスを許可する必要があります。
 
-`vite.config.ts` に `allowedHosts` を追加してください：
+`frontend/vite.config.ts` に `allowedHosts` を追加してください：
 
 ```typescript
 import { defineConfig } from "vite";
@@ -674,7 +683,8 @@ export default defineConfig({
 **ngrok の起動**:
 
 ```bash
-# ターミナル 1: 開発サーバーを起動
+# ターミナル 1: フロントエンドディレクトリに移動して開発サーバーを起動
+cd frontend
 npm run dev
 
 # ターミナル 2: ngrok を起動
@@ -693,7 +703,7 @@ Forwarding  https://xxxx-xxxx-xxxx.ngrok-free.dev -> http://localhost:3000
 
 **vite.config.ts の更新**:
 
-ngrok のドメインを取得したら、`vite.config.ts` の `allowedHosts` に追加してください：
+ngrok のドメインを取得したら、`frontend/vite.config.ts` の `allowedHosts` に追加してください：
 
 ```typescript
 allowedHosts: ["xxxx-xxxx-xxxx.ngrok-free.dev"], // 実際のngrokドメインに置き換え
@@ -702,6 +712,8 @@ allowedHosts: ["xxxx-xxxx-xxxx.ngrok-free.dev"], // 実際のngrokドメイン�
 開発サーバーを再起動してください。
 
 **manifest.json の更新**:
+
+`frontend/manifest.json` を更新してください：
 
 ```json
 {
@@ -726,14 +738,16 @@ allowedHosts: ["xxxx-xxxx-xxxx.ngrok-free.dev"], // 実際のngrokドメイン�
 **本番用ビルド**:
 
 ```bash
+cd frontend
 npm run build
 ```
 
-ビルド結果は `dist/` ディレクトリに出力されます。
+ビルド結果は `frontend/dist/` ディレクトリに出力されます。
 
 **ローカルでプレビュー**:
 
 ```bash
+cd frontend
 npm run preview
 ```
 
@@ -744,6 +758,9 @@ npm run preview
 開発サーバーではなく、ビルド結果を配信する場合：
 
 ```bash
+# フロントエンドディレクトリに移動
+cd frontend
+
 # ビルド
 npm run build
 
@@ -785,25 +802,25 @@ ngrok http 4173
 5. **manifest.json をアップロードまたは入力**:
 
    - 「Manifest」セクションまたは「Configuration」セクションを探す
-   - manifest.json ファイルをアップロードするか、内容をコピー&ペースト
+   - `frontend/manifest.json` ファイルをアップロードするか、内容をコピー&ペースト
    - **重要**: `app_type: "iframe"` が含まれていることを確認
 
 6. **manifest.json の内容を確認**:
 
-   ```json
-   {
-     "app_type": "iframe", // ← これが重要：iframe タイプのアプリ
-     "app_url": "https://your-ngrok-url.ngrok-free.dev",
-     "app_permissions": [
-       "getMeetingParticipants",
-       "onActiveSpeakerChange",
-       "onParticipantChange"
-     ]
-   }
-   ```
+```json
+{
+  "app_type": "iframe", // ← これが重要：iframe タイプのアプリ
+  "app_url": "https://your-ngrok-url.ngrok-free.dev",
+  "app_permissions": [
+    "getMeetingParticipants",
+    "onActiveSpeakerChange",
+    "onParticipantChange"
+  ]
+}
+```
 
-   - `app_url` が正しく設定されているか確認
-   - `app_permissions` に必要な権限が含まれているか確認
+- `app_url` が正しく設定されているか確認
+- `app_permissions` に必要な権限が含まれているか確認
 
 7. **アプリを公開**:
    - 「Publish」または「Submit」をクリック
@@ -831,7 +848,7 @@ ngrok http 4173
 
 **アプリが表示されない場合**:
 
-- manifest.json の `app_url` が正しいか確認
+- `frontend/manifest.json` の `app_url` が正しいか確認
 - ngrok が起動しているか確認
 - ブラウザの開発者ツールでエラーを確認
 - Zoom Marketplace でアプリが正しく公開されているか確認
@@ -844,7 +861,7 @@ ngrok http 4173
 
 **権限エラーが発生する場合**:
 
-- manifest.json の `app_permissions` に必要な権限が含まれているか確認
+- `frontend/manifest.json` の `app_permissions` に必要な権限が含まれているか確認
 - Zoom Marketplace でアプリの権限設定を確認
 
 **参加者情報が取得できない場合**:
@@ -854,10 +871,10 @@ ngrok http 4173
 
 #### 7. デプロイスクリプト
 
-プロジェクトには以下のデプロイ関連スクリプトが含まれています：
+プロジェクトには以下のデプロイ関連スクリプトが含まれています（`frontend/` ディレクトリで実行）：
 
-- `npm run deploy:setup`: manifest.json のテンプレートから実際のファイルを作成
-- `npm run deploy:check`: manifest.json の設定をチェック
+- `npm run deploy:setup`: `frontend/manifest.json.example` から `frontend/manifest.json` を作成
+- `npm run deploy:check`: `frontend/manifest.json` の設定をチェック
 
 詳細は各スクリプトのヘルプを参照してください。
 

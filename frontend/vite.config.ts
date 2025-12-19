@@ -13,7 +13,7 @@ export default defineConfig({
         "max-age=63072000; includeSubDomains; preload",
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy":
-        "frame-ancestors https://zoom.us https://*.zoom.us https://*.ngrok-free.dev",
+        "frame-ancestors https://zoom.us https://*.zoom.us https://*.ngrok-free.dev; script-src 'self' https://appssdk.zoom.us 'unsafe-inline' 'unsafe-eval'; object-src 'self'",
       "Referrer-Policy": "strict-origin-when-cross-origin",
     },
   },

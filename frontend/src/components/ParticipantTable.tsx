@@ -1,4 +1,5 @@
-import type { ParticipantStats } from '../types';
+import { useState, useEffect } from "react";
+import type { ParticipantStats } from "../types";
 import {
   calculateAverageSpeakingTime,
   calculateSpeakingShare,
@@ -6,8 +7,8 @@ import {
   getBalanceStatus,
   formatTime,
   formatTimeShort,
-} from '../utils/statistics';
-import styles from './ParticipantTable.module.css';
+} from "../utils/statistics";
+import styles from "./ParticipantTable.module.css";
 
 interface ParticipantTableProps {
   participants: ParticipantStats[];
@@ -17,13 +18,30 @@ interface ParticipantTableProps {
 /**
  * 参加者ごとの発話統計テーブル
  */
-export function ParticipantTable({ participants, currentSpeakerId }: ParticipantTableProps) {
+export function ParticipantTable({
+  participants,
+  currentSpeakerId,
+}: ParticipantTableProps) {
+  // 1秒ごとに再レンダリングして時間表示を更新
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   /**
-   * 現在話している人の経過時間を計算（表示用）
+   * 現在話している人の経過時間を計算（表示用、1秒単位）
    */
   const getCurrentSpeakingTime = (stats: ParticipantStats): number => {
     if (stats.isSpeaking && stats.lastStartedSpeakingAt) {
-      return stats.totalSpeakingMs + (Date.now() - stats.lastStartedSpeakingAt);
+      const currentDuration = currentTime - stats.lastStartedSpeakingAt;
+      // 1秒単位に丸める
+      const roundedDuration = Math.floor(currentDuration / 1000) * 1000;
+      return stats.totalSpeakingMs + roundedDuration;
     }
     return stats.totalSpeakingMs;
   };
@@ -52,28 +70,37 @@ export function ParticipantTable({ participants, currentSpeakerId }: Participant
         </thead>
         <tbody>
           {participants.map((participant) => {
-            const isCurrentSpeaker = participant.participantId === currentSpeakerId;
+            const isCurrentSpeaker =
+              participant.participantId === currentSpeakerId;
             const displayTime = getCurrentSpeakingTime(participant);
-            
+
             // 統計計算
             const avgTime = calculateAverageSpeakingTime(participant);
             const share = calculateSpeakingShare(participant, participants);
-            const balanceScore = calculateBalanceScore(participant, participants);
+            const balanceScore = calculateBalanceScore(
+              participant,
+              participants
+            );
             const balanceStatus = getBalanceStatus(balanceScore);
-            
+
             // 最大発話時間を取得（プログレスバー用）
-            const maxTime = Math.max(...participants.map((p) => getCurrentSpeakingTime(p)), 1);
+            const maxTime = Math.max(
+              ...participants.map((p) => getCurrentSpeakingTime(p)),
+              1
+            );
             const progressPercentage = (displayTime / maxTime) * 100;
-            
+
             return (
               <tr
                 key={participant.participantId}
-                className={isCurrentSpeaker ? styles.currentSpeaker : ''}
+                className={isCurrentSpeaker ? styles.currentSpeaker : ""}
               >
                 <td>
                   <span className={styles.name}>
                     {participant.displayName}
-                    {isCurrentSpeaker && <span className={styles.speakingBadge}>話し中</span>}
+                    {isCurrentSpeaker && (
+                      <span className={styles.speakingBadge}>話し中</span>
+                    )}
                   </span>
                 </td>
                 <td className={styles.count}>{participant.speakingCount}</td>
@@ -92,7 +119,9 @@ export function ParticipantTable({ participants, currentSpeakerId }: Participant
                   </div>
                 </td>
                 <td className={styles.avgTime}>
-                  {participant.speakingCount > 0 ? formatTimeShort(avgTime) : '-'}
+                  {participant.speakingCount > 0
+                    ? formatTimeShort(avgTime)
+                    : "-"}
                 </td>
                 <td className={styles.share}>
                   <div className={styles.shareContainer}>
@@ -130,4 +159,3 @@ export function ParticipantTable({ participants, currentSpeakerId }: Participant
     </div>
   );
 }
-

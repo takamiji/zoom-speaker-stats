@@ -72,7 +72,7 @@ sudo chown -R $USER:$USER /var/www/zoom-frontend
 
 ```bash
 # Nginx設定ファイルを作成
-sudo nano /etc/nginx/sites-available/zoom-app
+sudo vi /etc/nginx/sites-available/zoom-app
 ```
 
 以下の内容を記述:
@@ -148,7 +148,7 @@ pm2 startup  # システム起動時に自動起動
 ```bash
 cd ~/zoom-app/backend
 cp .env.example .env
-nano .env
+vi .env
 ```
 
 `.env`ファイルの内容:
@@ -502,17 +502,249 @@ pm2 logs zoom-backend
 
 ---
 
-## 🔒 SSL 証明書の設定（Let's Encrypt）
+## 🔒 HTTPS 化（SSL 証明書の設定）
+
+### Let's Encrypt を使用した SSL 証明書の取得
+
+ドメインを取得済みの場合、Let's Encrypt の無料 SSL 証明書を使用して HTTPS 化できます。
+
+#### ステップ 1: Certbot のインストール
 
 ```bash
+# VPSにSSH接続
+ssh user@your-server-ip
+
 # Certbotのインストール
+sudo apt-get update
 sudo apt-get install -y certbot python3-certbot-nginx
+```
 
-# SSL証明書の取得
-sudo certbot --nginx -d your-domain.com
+#### ステップ 2: DNS 設定の確認
 
-# 自動更新の確認
+**重要**: ドメインの DNS 設定で、VPS の IP アドレスに A レコードを設定してください。
+
+例:
+
+- ドメイン: `example.com`
+- サブドメイン: `app.example.com`（任意）
+- A レコード: `@` または `app` → `160.251.237.190`（VPS の IP アドレス）
+
+DNS 設定が反映されるまで数分〜数時間かかる場合があります。確認方法:
+
+```bash
+# DNS設定が反映されているか確認
+# お名前.comのDNSサーバーに問い合わせる場合
+nslookup zoom.katsun.info 01.dnsv.jp
+
+# または、デフォルトのDNSサーバーで確認
+nslookup zoom.katsun.info
+# または
+dig zoom.katsun.info
+```
+
+#### ステップ 3: Nginx 設定ファイルの更新
+
+ドメイン名を指定するように Nginx 設定を更新:
+
+```bash
+# Nginx設定ファイルを編集
+sudo vi /etc/nginx/sites-available/zoom-app
+```
+
+以下のように`server_name`を更新:
+
+**`server_name`の設定方法**:
+
+- サブドメインを使用する場合: `server_name zoom.katsun.info;`
+- メインドメインを使用する場合: `server_name katsun.info;`
+- 複数のドメインを使用する場合: `server_name zoom.katsun.info katsun.info;`
+
+```nginx
+server {
+    listen 80;
+    server_name zoom.katsun.info;  # サブドメイン名を指定（zoom.katsun.infoを使用）
+
+    # フロントエンド（静的ファイル）
+    location / {
+        root /var/www/zoom-frontend;
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+
+    # バックエンドAPI（リバースプロキシ）
+    location /api {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ヘルスチェック
+    location /health {
+        proxy_pass http://localhost:3001/health;
+    }
+}
+```
+
+```bash
+# Nginx設定をテスト
+sudo nginx -t
+
+# Nginxを再読み込み
+sudo systemctl reload nginx
+```
+
+#### ステップ 4: SSL 証明書の取得
+
+```bash
+# SSL証明書の取得（インタラクティブ）
+sudo certbot --nginx -d zoom.katsun.info
+
+# または、非インタラクティブモード（メールアドレスを指定）
+sudo certbot --nginx -d zoom.katsun.info --email your-email@example.com --agree-tos --non-interactive
+```
+
+**注意**:
+
+- `zoom.katsun.info`を実際のサブドメイン名に置き換えてください
+- メインの`katsun.info`も含める場合は: `sudo certbot --nginx -d zoom.katsun.info -d katsun.info`
+- メールアドレスは証明書の有効期限通知などに使用されます
+
+#### ステップ 5: 自動更新の設定
+
+Let's Encrypt の証明書は 90 日で期限切れになるため、自動更新を設定します。
+
+```bash
+# 自動更新のテスト
 sudo certbot renew --dry-run
+
+# 自動更新が正常に動作することを確認
+# systemdのタイマーが自動的に設定されているか確認
+sudo systemctl status certbot.timer
+```
+
+Certbot は自動的に systemd タイマーを設定するため、手動での設定は通常不要です。
+
+#### ステップ 6: 動作確認
+
+```bash
+# HTTPSでアクセスできるか確認
+curl https://zoom.katsun.info/api/health
+
+# ブラウザで確認
+# https://zoom.katsun.info を開く
+```
+
+#### ステップ 7: HTTP から HTTPS へのリダイレクト（推奨）
+
+Nginx 設定を更新して、HTTP アクセスを自動的に HTTPS にリダイレクト:
+
+```bash
+# Nginx設定ファイルを確認（Certbotが自動的に更新しているはず）
+cat /etc/nginx/sites-available/zoom-app
+```
+
+Certbot は通常、HTTP から HTTPS へのリダイレクトを自動的に設定します。設定されていない場合は、手動で追加:
+
+```nginx
+# HTTPからHTTPSへのリダイレクト
+server {
+    listen 80;
+    server_name zoom.katsun.info;
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS設定
+server {
+    listen 443 ssl http2;
+    server_name zoom.katsun.info;
+
+    ssl_certificate /etc/letsencrypt/live/zoom.katsun.info/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/zoom.katsun.info/privkey.pem;
+
+    # SSL設定（推奨）
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    # フロントエンド（静的ファイル）
+    location / {
+        root /var/www/zoom-frontend;
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+
+    # バックエンドAPI（リバースプロキシ）
+    location /api {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ヘルスチェック
+    location /health {
+        proxy_pass http://localhost:3001/health;
+    }
+}
+```
+
+```bash
+# Nginx設定をテスト
+sudo nginx -t
+
+# Nginxを再読み込み
+sudo systemctl reload nginx
+```
+
+### ConoHa VPS のセキュリティグループ設定
+
+HTTPS を使用する場合、ポート 443 も開放する必要があります。
+
+1. ConoHa VPS のコントロールパネルにログイン
+2. 対象の VPS を選択
+3. 「セキュリティグループ」設定を開く
+4. **IPv4v6-HTTPS**: ポート 443 を追加
+
+### トラブルシューティング
+
+#### SSL 証明書の取得に失敗する場合
+
+```bash
+# Certbotのログを確認
+sudo tail -f /var/log/letsencrypt/letsencrypt.log
+
+# よくある原因:
+# 1. DNS設定が反映されていない
+# 2. ポート80が外部からアクセスできない（ファイアウォール設定）
+# 3. ドメイン名のタイプミス
+```
+
+#### 証明書の更新
+
+```bash
+# 手動で更新
+sudo certbot renew
+
+# 更新後のNginx再読み込み
+sudo systemctl reload nginx
+```
+
+#### 証明書の確認
+
+```bash
+# 証明書の有効期限を確認
+sudo certbot certificates
 ```
 
 ---
