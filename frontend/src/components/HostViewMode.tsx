@@ -226,10 +226,19 @@ export function HostViewMode({ onBack }: HostViewModeProps) {
                                   : "-"}
                               </div>
                               <div className={styles.tableCell}>
-                                {participant.speakingShare !== null &&
-                                participant.speakingShare !== undefined
-                                  ? `${participant.speakingShare.toFixed(1)}%`
-                                  : "-"}
+                                {(() => {
+                                  const share = participant.speakingShare;
+                                  if (share === null || share === undefined) {
+                                    return "-";
+                                  }
+                                  const numShare =
+                                    typeof share === "number"
+                                      ? share
+                                      : parseFloat(String(share));
+                                  return isNaN(numShare)
+                                    ? "-"
+                                    : `${numShare.toFixed(1)}%`;
+                                })()}
                               </div>
                               <div className={styles.tableCell}>
                                 {participant.balanceScore !== null &&
