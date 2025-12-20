@@ -12,6 +12,7 @@ import styles from "./SpeakerDashboard.module.css";
 
 interface SpeakerDashboardProps {
   groupData?: GroupData | null;
+  selectedGroupId?: number | null;
 }
 
 /**
