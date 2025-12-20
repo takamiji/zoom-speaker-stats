@@ -30,15 +30,21 @@ export function HostViewMode({ onBack }: HostViewModeProps) {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         const stats = await fetchMeetingStatsByMeetingName(meetingName);
+        console.log("[HostViewMode] データ取得成功:", stats);
+        // データ構造の検証
+        if (!stats || !Array.isArray(stats.rooms)) {
+          throw new Error("無効なデータ形式が返されました");
+        }
         setMeetingStats(stats);
         setLastUpdated(Date.now());
-        setError(null);
       } catch (err) {
-        console.error("データ取得エラー:", err);
+        console.error("[HostViewMode] データ取得エラー:", err);
         setError(
           err instanceof Error ? err.message : "データの取得に失敗しました"
         );
+        setMeetingStats(null);
       } finally {
         setIsLoading(false);
       }
@@ -60,6 +66,15 @@ export function HostViewMode({ onBack }: HostViewModeProps) {
       setError(null);
     }
   };
+
+  // デバッグ用: 状態をログ出力
+  console.log("[HostViewMode] レンダリング:", {
+    meetingName,
+    isLoading,
+    error,
+    hasStats: !!meetingStats,
+    roomsCount: meetingStats?.rooms?.length || 0,
+  });
 
   return (
     <div className={styles.container}>
@@ -116,107 +131,133 @@ export function HostViewMode({ onBack }: HostViewModeProps) {
       )}
 
       {/* データ表示 */}
-      {!isLoading && meetingStats && meetingStats.rooms.length > 0 && (
-        <div className={styles.roomsGrid}>
-          {meetingStats.rooms.map((room) => (
-            <div key={room.roomName} className={styles.roomCard}>
-              <h3 className={styles.roomName}>{room.roomName}</h3>
+      {!isLoading &&
+        !error &&
+        meetingStats &&
+        meetingStats.rooms &&
+        meetingStats.rooms.length > 0 && (
+          <div className={styles.roomsGrid}>
+            {meetingStats.rooms.map((room) => {
+              if (!room || !room.roomName) return null;
+              return (
+                <div key={room.roomName} className={styles.roomCard}>
+                  <h3 className={styles.roomName}>{room.roomName}</h3>
 
-              {/* 全体統計 */}
-              {room.overallStats && (
-                <div className={styles.overallStats}>
-                  <h4 className={styles.overallStatsTitle}>全体統計</h4>
-                  <div className={styles.overallStatsGrid}>
-                    <div className={styles.statItem}>
-                      <span className={styles.statLabel}>参加者数</span>
-                      <span className={styles.statValue}>
-                        {room.overallStats.totalParticipants}人
-                      </span>
+                  {/* 全体統計 */}
+                  {room.overallStats && (
+                    <div className={styles.overallStats}>
+                      <h4 className={styles.overallStatsTitle}>全体統計</h4>
+                      <div className={styles.overallStatsGrid}>
+                        <div className={styles.statItem}>
+                          <span className={styles.statLabel}>参加者数</span>
+                          <span className={styles.statValue}>
+                            {room.overallStats.totalParticipants || 0}人
+                          </span>
+                        </div>
+                        <div className={styles.statItem}>
+                          <span className={styles.statLabel}>総発話時間</span>
+                          <span className={styles.statValue}>
+                            {formatTime(
+                              room.overallStats.totalSpeakingTimeMs || 0
+                            )}
+                          </span>
+                        </div>
+                        {room.overallStats.averageBalanceScore !== null &&
+                          room.overallStats.averageBalanceScore !==
+                            undefined && (
+                            <div className={styles.statItem}>
+                              <span className={styles.statLabel}>
+                                平均バランススコア
+                              </span>
+                              <span className={styles.statValue}>
+                                {room.overallStats.averageBalanceScore.toFixed(
+                                  1
+                                )}
+                              </span>
+                            </div>
+                          )}
+                      </div>
                     </div>
-                    <div className={styles.statItem}>
-                      <span className={styles.statLabel}>総発話時間</span>
-                      <span className={styles.statValue}>
-                        {formatTime(room.overallStats.totalSpeakingTimeMs)}
-                      </span>
-                    </div>
-                    {room.overallStats.averageBalanceScore !== null && (
-                      <div className={styles.statItem}>
-                        <span className={styles.statLabel}>
-                          平均バランススコア
-                        </span>
-                        <span className={styles.statValue}>
-                          {room.overallStats.averageBalanceScore.toFixed(1)}
-                        </span>
+                  )}
+
+                  {/* メンバー一覧 */}
+                  <div className={styles.participantsSection}>
+                    <h4 className={styles.participantsTitle}>メンバー統計</h4>
+                    {room.participants && room.participants.length > 0 ? (
+                      <div className={styles.participantsTable}>
+                        <div className={styles.tableHeader}>
+                          <div className={styles.tableCell}>名前</div>
+                          <div className={styles.tableCell}>発話回数</div>
+                          <div className={styles.tableCell}>総発話時間</div>
+                          <div className={styles.tableCell}>平均発話時間</div>
+                          <div className={styles.tableCell}>発話シェア</div>
+                          <div className={styles.tableCell}>バランススコア</div>
+                        </div>
+                        {room.participants.map((participant) => {
+                          if (!participant || !participant.participantId)
+                            return null;
+                          return (
+                            <div
+                              key={participant.participantId}
+                              className={styles.tableRow}
+                            >
+                              <div className={styles.tableCell}>
+                                {participant.displayName || "-"}
+                              </div>
+                              <div className={styles.tableCell}>
+                                {participant.speakingCount || 0}回
+                              </div>
+                              <div className={styles.tableCell}>
+                                {formatTime(participant.totalSpeakingMs || 0)}
+                              </div>
+                              <div className={styles.tableCell}>
+                                {participant.averageSpeakingTimeMs
+                                  ? formatTime(
+                                      participant.averageSpeakingTimeMs
+                                    )
+                                  : "-"}
+                              </div>
+                              <div className={styles.tableCell}>
+                                {participant.speakingShare !== null &&
+                                participant.speakingShare !== undefined
+                                  ? `${participant.speakingShare.toFixed(1)}%`
+                                  : "-"}
+                              </div>
+                              <div className={styles.tableCell}>
+                                {participant.balanceScore !== null &&
+                                participant.balanceScore !== undefined
+                                  ? participant.balanceScore
+                                  : "-"}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className={styles.empty}>
+                        <p>メンバーが登録されていません</p>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
-
-              {/* メンバー一覧 */}
-              <div className={styles.participantsSection}>
-                <h4 className={styles.participantsTitle}>メンバー統計</h4>
-                <div className={styles.participantsTable}>
-                  <div className={styles.tableHeader}>
-                    <div className={styles.tableCell}>名前</div>
-                    <div className={styles.tableCell}>発話回数</div>
-                    <div className={styles.tableCell}>総発話時間</div>
-                    <div className={styles.tableCell}>平均発話時間</div>
-                    <div className={styles.tableCell}>発話シェア</div>
-                    <div className={styles.tableCell}>バランススコア</div>
-                  </div>
-                  {room.participants.map((participant) => (
-                    <div
-                      key={participant.participantId}
-                      className={styles.tableRow}
-                    >
-                      <div className={styles.tableCell}>
-                        {participant.displayName}
-                      </div>
-                      <div className={styles.tableCell}>
-                        {participant.speakingCount}回
-                      </div>
-                      <div className={styles.tableCell}>
-                        {formatTime(participant.totalSpeakingMs)}
-                      </div>
-                      <div className={styles.tableCell}>
-                        {participant.averageSpeakingTimeMs
-                          ? formatTime(participant.averageSpeakingTimeMs)
-                          : "-"}
-                      </div>
-                      <div className={styles.tableCell}>
-                        {participant.speakingShare !== null &&
-                        participant.speakingShare !== undefined
-                          ? `${participant.speakingShare.toFixed(1)}%`
-                          : "-"}
-                      </div>
-                      <div className={styles.tableCell}>
-                        {participant.balanceScore !== null &&
-                        participant.balanceScore !== undefined
-                          ? participant.balanceScore
-                          : "-"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
 
       {/* データなし */}
       {!isLoading &&
+        !error &&
         meetingName &&
         meetingStats &&
-        meetingStats.rooms.length === 0 && (
+        (!meetingStats.rooms || meetingStats.rooms.length === 0) && (
           <div className={styles.empty}>
             <p>打ち合わせ「{meetingName}」のデータが見つかりませんでした</p>
           </div>
         )}
 
       {/* 初期表示（打ち合わせ名未入力） */}
-      {!meetingName && (
+      {!meetingName && !error && (
         <div className={styles.empty}>
           <p>打ち合わせ名を入力して統計を表示してください</p>
         </div>
