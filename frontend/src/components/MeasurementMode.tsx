@@ -57,9 +57,14 @@ export function MeasurementMode({
   ): ParticipantStats[] => {
     return participants.map((participant) => ({
       ...participant,
-      averageSpeakingTimeMs: calculateAverageSpeakingTime(participant),
+      // BIGINT型のカラムに保存するため、整数に丸める
+      averageSpeakingTimeMs: Math.round(
+        calculateAverageSpeakingTime(participant)
+      ),
       speakingShare: calculateSpeakingShare(participant, participants),
       balanceScore: calculateBalanceScore(participant, participants),
+      // totalSpeakingMsも念のため整数に丸める
+      totalSpeakingMs: Math.round(participant.totalSpeakingMs),
     }));
   };
 
