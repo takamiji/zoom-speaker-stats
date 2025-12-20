@@ -66,7 +66,7 @@ export async function saveParticipantStats(
 }
 
 /**
- * 複数の参加者統計を一括保存（トランザクション）
+ * 複数の参加者統計を一括保存（UPSERT、トランザクション）
  */
 export async function saveParticipantStatsBatch(
   statsList: ParticipantStatsData[]
@@ -90,6 +90,15 @@ export async function saveParticipantStatsBatch(
         balance_score,
         recorded_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (meeting_name, room_name, participant_id)
+      DO UPDATE SET
+        display_name = EXCLUDED.display_name,
+        speaking_count = EXCLUDED.speaking_count,
+        total_speaking_ms = EXCLUDED.total_speaking_ms,
+        average_speaking_time_ms = EXCLUDED.average_speaking_time_ms,
+        speaking_share = EXCLUDED.speaking_share,
+        balance_score = EXCLUDED.balance_score,
+        recorded_at = EXCLUDED.recorded_at
     `;
 
     for (const stats of statsList) {
@@ -118,7 +127,7 @@ export async function saveParticipantStatsBatch(
 }
 
 /**
- * 全体統計を保存
+ * 全体統計を保存（UPSERT）
  */
 export async function saveRoomOverallStats(
   data: RoomOverallStatsData
@@ -132,6 +141,12 @@ export async function saveRoomOverallStats(
       average_balance_score,
       recorded_at
     ) VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (meeting_name, room_name)
+    DO UPDATE SET
+      total_participants = EXCLUDED.total_participants,
+      total_speaking_time_ms = EXCLUDED.total_speaking_time_ms,
+      average_balance_score = EXCLUDED.average_balance_score,
+      recorded_at = EXCLUDED.recorded_at
   `;
 
   const values = [
@@ -252,4 +267,3 @@ export async function getParticipantStatsByMeetingId(
   // meetingIdをmeetingNameとして扱う（後で改善可能）
   return getParticipantStatsByMeeting(meetingId);
 }
-

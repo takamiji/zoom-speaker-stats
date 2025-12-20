@@ -181,22 +181,20 @@ export function useZoomSpeakerStats() {
           return updated;
         });
 
-        // 5秒タイマーをスタート（最後にisSpeaking === trueだった時刻を記録）
+        // 10秒タイマーをスタート（最後にonActiveSpeakerChangeイベントが来た時刻を記録）
         lastActiveSpeakerTimeRef.current = now;
       }
 
       // ===== 条件4: 同じ話者が話し続けている場合 =====
-      // onActiveSpeakerChangeイベントは話し続けている間には来ないため、
-      // この条件は通常発生しない（1秒ごとのチェックで処理される）
+      // onActiveSpeakerChangeイベントが同じ話者で再度来た場合、タイマーをリセット
       if (activeSpeakerId && activeSpeakerId === prevSpeakerId) {
-        // 念のため、isSpeakingがtrueの場合のみタイマーをリセット
-        updateParticipantStats((prev) => {
-          const stats = prev.get(activeSpeakerId);
-          if (stats && stats.isSpeaking) {
-            lastActiveSpeakerTimeRef.current = now;
-          }
-          return prev;
-        });
+        // タイマーをリセット（10秒タイムアウトを延長）
+        lastActiveSpeakerTimeRef.current = now;
+        addLog(
+          `${
+            participants.get(activeSpeakerId)?.displayName || activeSpeakerId
+          } のonActiveSpeakerChangeイベント受信: タイマーをリセット`
+        );
       }
 
       previousSpeakerIdRef.current = activeSpeakerId;
@@ -557,7 +555,6 @@ export function useZoomSpeakerStats() {
           }
         }
 
-        // onParticipantChangeイベントは使用しない（getMeetingParticipants()が必要なため）
         // 参加者の参加/退出はonActiveSpeakerChangeイベントから検知する
 
         if (mounted) {
@@ -590,402 +587,66 @@ export function useZoomSpeakerStats() {
 
   /**
    * 1秒ごとに再レンダリングをトリガー（現在話している人の経過時間を更新）
-   * onActiveSpeakerChangeイベントのタイムスタンプと5秒タイマーを使用
+   * onActiveSpeakerChangeイベントのタイムスタンプと10秒タイマーを使用
    *
    * 処理フロー:
-   * 1. onActiveSpeakerChangeで話者Aが来たら、isSpeaking = true、5秒タイマーをスタート
-   * 2. 1秒ごとに確認:
-   *    - 最後のonActiveSpeakerChangeイベントから5秒経過したら話者終了
-   * 3. 5秒タイマーが満了したら話者終了
+   * 1. onActiveSpeakerChangeで話者Aが来たら、isSpeaking = true、10秒タイマーをスタート
+   * 2. 同じ話者のonActiveSpeakerChangeが来たら、タイマーをリセット
+   * 3. 1秒ごとに確認:
+   *    - 最後のonActiveSpeakerChangeイベントから10秒経過したら話者終了
    */
   useEffect(() => {
-    intervalRef.current = window.setInterval(async () => {
+    intervalRef.current = window.setInterval(() => {
       const now = Date.now();
 
       // 1秒ごとのチェック処理
-      if (currentSpeakerId) {
-        try {
-          // config()を実行したSDKインスタンスを使用（常に同じインスタンス）
-          const sdk = sdkRef.current;
+      if (currentSpeakerId && lastActiveSpeakerTimeRef.current !== null) {
+        const timeSinceLastSpeaking = now - lastActiveSpeakerTimeRef.current;
 
-          if (!sdk) {
-            addLog(`[1秒チェック] ⚠️ SDKインスタンスが保持されていません`);
-            return;
-          }
-
-          // SDKの状態を確認
-          const sdkKeys = Object.keys(sdk || {});
-          addLog(
-            `[1秒チェック] SDK状態確認: SDK存在=${!!sdk}, キー数=${
-              sdkKeys.length
-            }, キー=${sdkKeys.slice(0, 10).join(", ")}${
-              sdkKeys.length > 10 ? "..." : ""
-            }`
-          );
-
-          const getParticipants =
-            sdk?.getMeetingParticipants || sdk?.getParticipants;
-
-          if (!getParticipants) {
-            addLog(
-              `[1秒チェック] ⚠️ getMeetingParticipants()が見つかりません。SDKオブジェクトのキー: ${sdkKeys.join(
-                ", "
-              )}`
-            );
-            // タイムアウトチェックにフォールバック
-            const currentStats = participants.get(currentSpeakerId);
-            if (
-              currentStats &&
-              !currentStats.isSpeaking &&
-              lastActiveSpeakerTimeRef.current !== null
-            ) {
-              const timeSinceLastSpeaking =
-                now - lastActiveSpeakerTimeRef.current;
-              addLog(
-                `[1秒チェック] API未取得時タイムアウトチェック: isSpeaking=false, 経過時間=${Math.floor(
-                  timeSinceLastSpeaking / 1000
-                )}秒（残り${Math.max(
-                  0,
-                  5 - Math.floor(timeSinceLastSpeaking / 1000)
-                )}秒でタイムアウト）`
-              );
-              if (timeSinceLastSpeaking > 5000) {
-                // 5秒経過したので話者終了
-                if (currentStats.lastStartedSpeakingAt) {
-                  const speakingDuration =
-                    now - currentStats.lastStartedSpeakingAt;
-                  updateParticipantStats((prev) => {
-                    const prevStats = prev.get(currentSpeakerId);
-                    if (prevStats && prevStats.lastStartedSpeakingAt) {
-                      const updated = new Map(prev);
-                      updated.set(currentSpeakerId, {
-                        ...prevStats,
-                        isSpeaking: false,
-                        totalSpeakingMs:
-                          prevStats.totalSpeakingMs + speakingDuration,
-                        lastStartedSpeakingAt: null,
-                      });
-                      addLog(
-                        `${
-                          prevStats.displayName
-                        } の発話が終了しました（5秒タイムアウト、API未取得、${formatTime(
-                          speakingDuration
-                        )}）`
-                      );
-                      return updated;
-                    }
-                    return prev;
-                  });
-                }
-                // 話者なしに設定
-                handleActiveSpeakerChange(null);
-                lastActiveSpeakerTimeRef.current = null;
-              }
-            }
-          } else {
-            addLog(
-              `[1秒チェック] getMeetingParticipants()を呼び出し中... (型: ${typeof getParticipants})`
-            );
-            const participantsList = await getParticipants();
-            if (Array.isArray(participantsList)) {
-              // 現在話している人の情報を取得
-              const currentParticipant = participantsList.find(
-                (p: any) =>
-                  (p.participantId || p.participantUUID) === currentSpeakerId
-              );
-
-              if (currentParticipant) {
-                // isMutedを確認
-                const isMuted = currentParticipant.isMuted === true;
-                const isSpeakingFromAPI =
-                  currentParticipant.isSpeaking === true ||
-                  currentParticipant.audioStatus === "speaking";
-
-                // 1秒ごとのデバッグログ
-                const currentStats = participants.get(currentSpeakerId);
-                const timeSinceLastSpeaking = lastActiveSpeakerTimeRef.current
-                  ? now - lastActiveSpeakerTimeRef.current
-                  : null;
-                addLog(
-                  `[1秒チェック] participantId=${
-                    currentParticipant.participantId
-                  }, isMuted=${isMuted}, isSpeaking(API)=${
-                    currentParticipant.isSpeaking
-                  }, audioStatus=${
-                    currentParticipant.audioStatus
-                  }, isSpeaking(内部)=${
-                    currentStats?.isSpeaking ?? "N/A"
-                  }, lastActiveSpeakerTime=${
-                    lastActiveSpeakerTimeRef.current
-                      ? new Date(
-                          lastActiveSpeakerTimeRef.current
-                        ).toLocaleTimeString("ja-JP")
-                      : "null"
-                  }, timeSinceLastSpeaking=${
-                    timeSinceLastSpeaking !== null
-                      ? `${Math.floor(timeSinceLastSpeaking / 1000)}秒`
-                      : "N/A"
-                  }`
-                );
-
-                // isMutedなら即座に発話終了
-                if (isMuted) {
-                  if (currentStats && currentStats.isSpeaking) {
-                    updateParticipantStats((prev) => {
-                      const prevStats = prev.get(currentSpeakerId);
-                      if (
-                        prevStats &&
-                        prevStats.isSpeaking &&
-                        prevStats.lastStartedSpeakingAt
-                      ) {
-                        const speakingDuration =
-                          now - prevStats.lastStartedSpeakingAt;
-                        const updated = new Map(prev);
-                        updated.set(currentSpeakerId, {
-                          ...prevStats,
-                          isSpeaking: false,
-                          totalSpeakingMs:
-                            prevStats.totalSpeakingMs + speakingDuration,
-                          lastStartedSpeakingAt: null,
-                        });
-                        addLog(
-                          `${
-                            prevStats.displayName
-                          } の発話が終了しました（ミュート検出、${formatTime(
-                            speakingDuration
-                          )}）`
-                        );
-                        return updated;
-                      }
-                      // 既にisSpeakingがfalseの場合でも、念のため確認
-                      if (prevStats && prevStats.isSpeaking) {
-                        const updated = new Map(prev);
-                        updated.set(currentSpeakerId, {
-                          ...prevStats,
-                          isSpeaking: false,
-                        });
-                        return updated;
-                      }
-                      return prev;
-                    });
-                    // 話者なしに設定
-                    handleActiveSpeakerChange(null);
-                    lastActiveSpeakerTimeRef.current = null;
-                    return; // 処理を終了（以降の処理をスキップ）
-                  }
-                }
-                // isSpeaking === trueなら5秒タイマーをリセット
-                else if (isSpeakingFromAPI) {
-                  updateParticipantStats((prev) => {
-                    const prevStats = prev.get(currentSpeakerId);
-                    if (prevStats) {
-                      const updated = new Map(prev);
-                      // isSpeakingがfalseの場合はtrueに更新
-                      if (!prevStats.isSpeaking) {
-                        updated.set(currentSpeakerId, {
-                          ...prevStats,
-                          isSpeaking: true,
-                          lastStartedSpeakingAt:
-                            prevStats.lastStartedSpeakingAt || now,
-                        });
-                        addLog(
-                          `[1秒チェック] ${prevStats.displayName} のisSpeakingをfalse→trueに更新（タイマーリセット）`
-                        );
-                      } else {
-                        addLog(
-                          `[1秒チェック] ${prevStats.displayName} は話し続けています（タイマーリセット）`
-                        );
-                      }
-                      // 5秒タイマーをリセット（最後にisSpeaking === trueだった時刻を更新）
-                      lastActiveSpeakerTimeRef.current = now;
-                      return updated;
-                    }
-                    return prev;
-                  });
-                }
-                // isSpeaking === falseならタイマーはそのまま（リセットしない）
-                else {
-                  updateParticipantStats((prev) => {
-                    const prevStats = prev.get(currentSpeakerId);
-                    if (prevStats && prevStats.isSpeaking) {
-                      const updated = new Map(prev);
-                      updated.set(currentSpeakerId, {
-                        ...prevStats,
-                        isSpeaking: false,
-                      });
-                      addLog(
-                        `[1秒チェック] ${prevStats.displayName} のisSpeakingをtrue→falseに更新（タイマーはそのまま）`
-                      );
-                      return updated;
-                    }
-                    return prev;
-                  });
-
-                  // 5秒タイマーのチェック: isSpeaking === falseが続き、5秒経過したら話者終了
-                  if (lastActiveSpeakerTimeRef.current !== null) {
-                    const timeSinceLastSpeaking =
-                      now - lastActiveSpeakerTimeRef.current;
-                    addLog(
-                      `[1秒チェック] isSpeaking=falseが続いています。経過時間: ${Math.floor(
-                        timeSinceLastSpeaking / 1000
-                      )}秒（残り${Math.max(
-                        0,
-                        5 - Math.floor(timeSinceLastSpeaking / 1000)
-                      )}秒でタイムアウト）`
-                    );
-                    if (timeSinceLastSpeaking > 5000) {
-                      // 5秒経過したので話者終了
-                      const currentStats = participants.get(currentSpeakerId);
-                      if (currentStats && currentStats.lastStartedSpeakingAt) {
-                        const speakingDuration =
-                          now - currentStats.lastStartedSpeakingAt;
-                        updateParticipantStats((prev) => {
-                          const prevStats = prev.get(currentSpeakerId);
-                          if (prevStats && prevStats.lastStartedSpeakingAt) {
-                            const updated = new Map(prev);
-                            updated.set(currentSpeakerId, {
-                              ...prevStats,
-                              isSpeaking: false,
-                              totalSpeakingMs:
-                                prevStats.totalSpeakingMs + speakingDuration,
-                              lastStartedSpeakingAt: null,
-                            });
-                            addLog(
-                              `${
-                                prevStats.displayName
-                              } の発話が終了しました（5秒タイムアウト、${formatTime(
-                                speakingDuration
-                              )}）`
-                            );
-                            return updated;
-                          }
-                          return prev;
-                        });
-                      }
-                      // 話者なしに設定
-                      handleActiveSpeakerChange(null);
-                      lastActiveSpeakerTimeRef.current = null;
-                      return; // 処理を終了
-                    }
-                  }
-                }
-              }
-            } else {
-              addLog(
-                `[1秒チェック] ⚠️ getMeetingParticipants()の結果が配列ではありません: ${typeof participantsList}`
-              );
-            }
-          }
-        } catch (err) {
-          // getMeetingParticipants()が失敗した場合、タイムアウトチェックにフォールバック
-          // isSpeaking === falseが続き、5秒経過したら話者終了
+        // 10秒タイムアウトチェック
+        if (timeSinceLastSpeaking > 10000) {
+          // 10秒経過したので話者終了
           const currentStats = participants.get(currentSpeakerId);
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          const errorStack = err instanceof Error ? err.stack : undefined;
-          const errorName = err instanceof Error ? err.name : "Unknown";
-
-          addLog(
-            `[1秒チェック] ❌ getMeetingParticipants()エラー: ${errorName}: ${errorMessage}`
-          );
-
-          // エラーの詳細情報を取得
-          if (err instanceof Error) {
-            addLog(
-              `[1秒チェック] エラー詳細: name=${err.name}, message=${err.message}`
-            );
-            if (errorStack) {
-              // スタックトレースの最初の数行だけを表示
-              const stackLines = errorStack.split("\n").slice(0, 5);
-              addLog(
-                `[1秒チェック] スタックトレース（最初の5行）: ${stackLines.join(
-                  " | "
-                )}`
-              );
-            }
-          } else {
-            addLog(`[1秒チェック] エラーオブジェクト: ${JSON.stringify(err)}`);
-          }
-
-          // SDKの状態を再確認
-          try {
-            // config()を実行したSDKインスタンスを使用
-            const sdk = sdkRef.current;
-            if (!sdk) {
-              addLog(
-                `[1秒チェック] ⚠️ SDKインスタンスが保持されていません（エラー時）`
-              );
-              return;
-            }
-            const sdkKeys = Object.keys(sdk || {});
-            addLog(
-              `[1秒チェック] エラー発生時のSDK状態: SDK存在=${!!sdk}, キー数=${
-                sdkKeys.length
-              }`
-            );
-            if (sdk) {
-              addLog(
-                `[1秒チェック] SDKのgetMeetingParticipants存在: ${!!sdk.getMeetingParticipants}, getParticipants存在: ${!!sdk.getParticipants}`
-              );
-            }
-          } catch (sdkCheckError) {
-            addLog(
-              `[1秒チェック] SDK状態確認エラー: ${
-                sdkCheckError instanceof Error
-                  ? sdkCheckError.message
-                  : String(sdkCheckError)
-              }`
-            );
-          }
-
-          addLog(`[1秒チェック] タイムアウトチェックにフォールバック`);
-          if (currentStats) {
-            if (
-              !currentStats.isSpeaking &&
-              lastActiveSpeakerTimeRef.current !== null
-            ) {
-              const timeSinceLastSpeaking =
-                now - lastActiveSpeakerTimeRef.current;
-              addLog(
-                `[1秒チェック] エラー時タイムアウトチェック: isSpeaking=false, 経過時間=${Math.floor(
-                  timeSinceLastSpeaking / 1000
-                )}秒（残り${Math.max(
-                  0,
-                  5 - Math.floor(timeSinceLastSpeaking / 1000)
-                )}秒でタイムアウト）`
-              );
-              if (timeSinceLastSpeaking > 5000) {
-                // 5秒経過したので話者終了
-                if (currentStats.lastStartedSpeakingAt) {
-                  const speakingDuration =
-                    now - currentStats.lastStartedSpeakingAt;
-                  updateParticipantStats((prev) => {
-                    const prevStats = prev.get(currentSpeakerId);
-                    if (prevStats && prevStats.lastStartedSpeakingAt) {
-                      const updated = new Map(prev);
-                      updated.set(currentSpeakerId, {
-                        ...prevStats,
-                        isSpeaking: false,
-                        totalSpeakingMs:
-                          prevStats.totalSpeakingMs + speakingDuration,
-                        lastStartedSpeakingAt: null,
-                      });
-                      addLog(
-                        `${
-                          prevStats.displayName
-                        } の発話が終了しました（5秒タイムアウト、getMeetingParticipants失敗、${formatTime(
-                          speakingDuration
-                        )}）`
-                      );
-                      return updated;
-                    }
-                    return prev;
-                  });
-                }
-                // 話者なしに設定
-                handleActiveSpeakerChange(null);
-                lastActiveSpeakerTimeRef.current = null;
+          if (currentStats && currentStats.lastStartedSpeakingAt) {
+            const speakingDuration = now - currentStats.lastStartedSpeakingAt;
+            updateParticipantStats((prev) => {
+              const prevStats = prev.get(currentSpeakerId);
+              if (prevStats && prevStats.lastStartedSpeakingAt) {
+                const updated = new Map(prev);
+                updated.set(currentSpeakerId, {
+                  ...prevStats,
+                  isSpeaking: false,
+                  totalSpeakingMs: prevStats.totalSpeakingMs + speakingDuration,
+                  lastStartedSpeakingAt: null,
+                });
+                addLog(
+                  `${
+                    prevStats.displayName
+                  } の発話が終了しました（10秒タイムアウト、${formatTime(
+                    speakingDuration
+                  )}）`
+                );
+                return updated;
               }
-            }
+              return prev;
+            });
+          }
+          // 話者なしに設定
+          handleActiveSpeakerChange(null);
+          lastActiveSpeakerTimeRef.current = null;
+        } else {
+          // タイムアウトまで残り時間をログに出力（デバッグ用）
+          const remainingSeconds = Math.ceil(
+            (10000 - timeSinceLastSpeaking) / 1000
+          );
+          if (remainingSeconds <= 3) {
+            // 残り3秒以下になったらログ出力
+            const currentStats = participants.get(currentSpeakerId);
+            addLog(
+              `[1秒チェック] ${
+                currentStats?.displayName || currentSpeakerId
+              } のタイムアウトまで残り${remainingSeconds}秒`
+            );
           }
         }
       }
