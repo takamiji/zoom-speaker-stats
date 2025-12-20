@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import styles from './MeasurementSetup.module.css';
+import { useState } from "react";
+import styles from "./MeasurementSetup.module.css";
 
 interface MeasurementSetupProps {
   onStart: (meetingName: string, roomName: string) => void;
@@ -14,8 +14,8 @@ interface MeasurementSetupProps {
 export function MeasurementSetup({
   onStart,
   onBack,
-  defaultMeetingName = '',
-  defaultRoomName = '',
+  defaultMeetingName = "",
+  defaultRoomName = "",
 }: MeasurementSetupProps) {
   const [meetingName, setMeetingName] = useState(defaultMeetingName);
   const [roomName, setRoomName] = useState(defaultRoomName);
@@ -29,7 +29,7 @@ export function MeasurementSetup({
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>計測設定</h2>
+      <h2 className={styles.title}>計測モード</h2>
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.field}>
           <label htmlFor="meetingName" className={styles.label}>
@@ -71,4 +71,3 @@ export function MeasurementSetup({
     </div>
   );
 }
-
