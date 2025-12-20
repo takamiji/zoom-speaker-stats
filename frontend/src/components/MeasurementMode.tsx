@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useZoomSpeakerStats } from "../hooks/useZoomSpeakerStats";
 import { SpeakerDashboard } from "./SpeakerDashboard";
 import { saveRoomStats } from "../utils/api";
@@ -59,19 +59,45 @@ export function MeasurementMode({
   useEffect(() => {
     if (!isRecording) return;
 
-    // 参加者が0人の場合は保存しない（エラーを表示しない）
-    if (participants.length === 0) {
-      console.log("[MeasurementMode] 参加者が0人のため、保存をスキップします");
-      return;
-    }
-
     const intervalId = setInterval(async () => {
+      // 最新のparticipantsを取得
+      const currentParticipants = participantsRef.current;
+
+      // 参加者が0人の場合は保存しない（エラーを表示しない）
+      if (currentParticipants.length === 0) {
+        console.log(
+          "[MeasurementMode] 参加者が0人のため、保存をスキップします"
+        );
+        return;
+      }
+
       try {
         console.log(
-          `[MeasurementMode] 定期保存開始: 参加者数=${participants.length}`
+          `[MeasurementMode] 定期保存開始: 参加者数=${currentParticipants.length}`
         );
         // 詳細統計を計算して追加
-        const enrichedParticipants = enrichParticipantsWithStats(participants);
+        const enrichedParticipants =
+          enrichParticipantsWithStats(currentParticipants);
+
+        // デバッグログ: 送信するデータを確認
+        console.log(
+          `[MeasurementMode] 送信データ: 参加者数=${enrichedParticipants.length}`
+        );
+        enrichedParticipants.forEach((p, index) => {
+          console.log(
+            `[MeasurementMode] 参加者[${index}]: participantId=${p.participantId}, displayName=${p.displayName}, totalSpeakingMs=${p.totalSpeakingMs}, speakingCount=${p.speakingCount}`
+          );
+        });
+        const totalSpeakingTime = enrichedParticipants.reduce(
+          (sum, p) => sum + (p.totalSpeakingMs || 0),
+          0
+        );
+        console.log(
+          `[MeasurementMode] 合計発話時間: ${totalSpeakingTime}ms (${Math.floor(
+            totalSpeakingTime / 1000
+          )}秒)`
+        );
+
         await saveRoomStats({
           roomId,
           meetingId,
@@ -93,27 +119,31 @@ export function MeasurementMode({
     }, 10000); // 10秒ごと
 
     return () => clearInterval(intervalId);
-  }, [isRecording, roomId, meetingId, meetingName, roomName, participants]);
+  }, [isRecording, roomId, meetingId, meetingName, roomName]);
 
   // 計測終了時に最終保存
   useEffect(() => {
     return () => {
-      if (isRecording && participants.length > 0) {
-        // 詳細統計を計算して追加
-        const enrichedParticipants = enrichParticipantsWithStats(participants);
-        saveRoomStats({
-          roomId,
-          meetingId,
-          meetingName,
-          roomName,
-          participants: enrichedParticipants,
-          recordedAt: Date.now(),
-        }).catch((err) => {
-          console.error("最終保存エラー:", err);
-        });
+      if (isRecording) {
+        const currentParticipants = participantsRef.current;
+        if (currentParticipants.length > 0) {
+          // 詳細統計を計算して追加
+          const enrichedParticipants =
+            enrichParticipantsWithStats(currentParticipants);
+          saveRoomStats({
+            roomId,
+            meetingId,
+            meetingName,
+            roomName,
+            participants: enrichedParticipants,
+            recordedAt: Date.now(),
+          }).catch((err) => {
+            console.error("最終保存エラー:", err);
+          });
+        }
       }
     };
-  }, [isRecording, roomId, meetingId, meetingName, roomName, participants]);
+  }, [isRecording, roomId, meetingId, meetingName, roomName]);
 
   const handleStart = () => {
     setIsRecording(true);
@@ -121,10 +151,12 @@ export function MeasurementMode({
 
   const handleStop = async () => {
     // 最終保存
-    if (participants.length > 0) {
+    const currentParticipants = participantsRef.current;
+    if (currentParticipants.length > 0) {
       try {
         // 詳細統計を計算して追加
-        const enrichedParticipants = enrichParticipantsWithStats(participants);
+        const enrichedParticipants =
+          enrichParticipantsWithStats(currentParticipants);
         await saveRoomStats({
           roomId,
           meetingId,

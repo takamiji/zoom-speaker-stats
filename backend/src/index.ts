@@ -87,6 +87,19 @@ app.post("/api/rooms/:roomId/stats", async (req, res) => {
           balanceScores.length
         : null;
 
+    // デバッグログ: 送られてくるデータを確認
+    console.log(
+      `[API] 全体統計計算: meetingName=${meetingName}, roomName=${roomName}, participants=${participants.length}`
+    );
+    participants.forEach((p: any, index: number) => {
+      console.log(
+        `[API] 参加者[${index}]: participantId=${p.participantId}, displayName=${p.displayName}, totalSpeakingMs=${p.totalSpeakingMs}, speakingCount=${p.speakingCount}`
+      );
+    });
+    console.log(
+      `[API] 計算結果: totalSpeakingTime=${totalSpeakingTime}, avgBalanceScore=${avgBalanceScore}`
+    );
+
     await saveRoomOverallStats({
       meetingName,
       roomName,
@@ -97,7 +110,7 @@ app.post("/api/rooms/:roomId/stats", async (req, res) => {
     });
 
     console.log(
-      `[API] ルーム統計を保存: roomId=${roomId}, meetingName=${meetingName}, roomName=${roomName}, participants=${participants.length}`
+      `[API] ルーム統計を保存: roomId=${roomId}, meetingName=${meetingName}, roomName=${roomName}, participants=${participants.length}, totalSpeakingTimeMs=${totalSpeakingTime}`
     );
 
     res.json({
