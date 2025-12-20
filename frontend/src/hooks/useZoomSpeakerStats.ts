@@ -345,8 +345,6 @@ export function useZoomSpeakerStats() {
                 : "不明"
             }`
           );
-          configSuccess = true;
-          addLog(`🔵 configSuccessをtrueに設定しました`);
         } catch (configError) {
           // config()が失敗した場合、古い形式を試す
           addLog(

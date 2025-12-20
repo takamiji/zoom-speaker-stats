@@ -12,6 +12,7 @@ import {
   calculateSpeakingShare,
   calculateBalanceScore,
 } from "../utils/statistics";
+import type { ParticipantStats } from "../types";
 import styles from "./MeasurementMode.module.css";
 
 interface MeasurementModeProps {
