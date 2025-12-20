@@ -170,9 +170,17 @@ export function HostViewMode({ onBack }: HostViewModeProps) {
                                 平均バランススコア
                               </span>
                               <span className={styles.statValue}>
-                                {room.overallStats.averageBalanceScore.toFixed(
-                                  1
-                                )}
+                                {(() => {
+                                  const score =
+                                    room.overallStats.averageBalanceScore;
+                                  if (typeof score === "number") {
+                                    return score.toFixed(1);
+                                  }
+                                  const numScore = parseFloat(String(score));
+                                  return isNaN(numScore)
+                                    ? "-"
+                                    : numScore.toFixed(1);
+                                })()}
                               </span>
                             </div>
                           )}
