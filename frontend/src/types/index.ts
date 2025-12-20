@@ -50,6 +50,8 @@ export interface BreakoutRoom {
 export interface RoomStatsData {
   roomId: string;
   meetingId: string;
+  meetingName?: string; // 打ち合わせ名
+  roomName?: string; // ルーム名
   participants: ParticipantStats[];
   recordedAt: number;
 }
@@ -70,6 +72,4 @@ export interface AllRoomsStats {
 /**
  * アプリモード
  */
-export type AppMode = 'measurement' | 'host-view' | 'select';
-
-
+export type AppMode = "measurement" | "host-view" | "select";

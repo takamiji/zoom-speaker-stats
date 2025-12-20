@@ -53,6 +53,8 @@ export function MeasurementMode({
         await saveRoomStats({
           roomId,
           meetingId,
+          meetingName,
+          roomName,
           participants: participants,
           recordedAt: Date.now(),
         });
@@ -69,7 +71,7 @@ export function MeasurementMode({
     }, 10000); // 10秒ごと
 
     return () => clearInterval(intervalId);
-  }, [isRecording, roomId, meetingId, participants]);
+  }, [isRecording, roomId, meetingId, meetingName, roomName, participants]);
 
   // 計測終了時に最終保存
   useEffect(() => {
@@ -78,6 +80,8 @@ export function MeasurementMode({
         saveRoomStats({
           roomId,
           meetingId,
+          meetingName,
+          roomName,
           participants: participants,
           recordedAt: Date.now(),
         }).catch((err) => {
@@ -85,7 +89,7 @@ export function MeasurementMode({
         });
       }
     };
-  }, [isRecording, roomId, meetingId, participants]);
+  }, [isRecording, roomId, meetingId, meetingName, roomName, participants]);
 
   const handleStart = () => {
     setIsRecording(true);
@@ -98,6 +102,8 @@ export function MeasurementMode({
         await saveRoomStats({
           roomId,
           meetingId,
+          meetingName,
+          roomName,
           participants: participants,
           recordedAt: Date.now(),
         });
