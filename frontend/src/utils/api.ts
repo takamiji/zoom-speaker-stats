@@ -1,4 +1,8 @@
-import type { RoomStatsData, AllRoomsStats } from "../types";
+import type {
+  RoomStatsData,
+  AllRoomsStats,
+  MeetingStatsResponse,
+} from "../types";
 
 /**
  * バックエンドAPIのベースURL
@@ -61,6 +65,32 @@ export async function fetchAllRoomsStats(
 ): Promise<AllRoomsStats> {
   const response = await fetch(
     `${API_BASE_URL}/rooms/stats?meetingId=${meetingId}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "データの取得に失敗しました" }));
+    throw new Error(error.message || "データの取得に失敗しました");
+  }
+
+  return response.json();
+}
+
+/**
+ * 打ち合わせ名で統計データを取得（閲覧モード用）
+ */
+export async function fetchMeetingStatsByMeetingName(
+  meetingName: string
+): Promise<MeetingStatsResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/meetings/${encodeURIComponent(meetingName)}/stats`,
     {
       method: "GET",
       headers: {

@@ -73,6 +73,23 @@ export interface AllRoomsStats {
 }
 
 /**
+ * 打ち合わせ名で取得する統計データ（閲覧モード用）
+ */
+export interface MeetingStatsResponse {
+  meetingName: string;
+  rooms: Array<{
+    roomName: string;
+    participants: ParticipantStats[];
+    overallStats: {
+      totalParticipants: number;
+      totalSpeakingTimeMs: number;
+      averageBalanceScore: number | null;
+    } | null;
+    lastUpdated: number;
+  }>;
+}
+
+/**
  * アプリモード
  */
 export type AppMode = "measurement" | "host-view" | "select";

@@ -16,29 +16,17 @@ import "./App.css";
  */
 function App() {
   const [mode, setMode] = useState<ExtendedAppMode>("select");
-  const [isHost, setIsHost] = useState<boolean>(false);
   const [meetingId, setMeetingId] = useState<string>("");
   const [meetingName, setMeetingName] = useState<string>("");
   const [roomName, setRoomName] = useState<string>("");
   const [roomId, setRoomId] = useState<string>("");
 
-  // ホスト判定とミーティングID取得
+  // ミーティングID取得
   useEffect(() => {
-    const checkHostAndMeeting = async () => {
+    const checkMeeting = async () => {
       try {
         const zoomSdk = (window as any).ZoomAppsSDK;
         if (zoomSdk) {
-          // ホスト判定（SDKが提供する場合）
-          // 注意: 実際のAPI名は要確認
-          try {
-            const userInfo = await (zoomSdk.getCurrentUser?.() ||
-              Promise.resolve({ role: "participant" }));
-            setIsHost(userInfo.role === "host" || userInfo.role === "co-host");
-          } catch {
-            // ホスト判定ができない場合はデフォルトでfalse
-            setIsHost(false);
-          }
-
           // ミーティングID取得（SDKが提供する場合）
           try {
             const meetingInfo = await (zoomSdk.getMeetingInfo?.() ||
@@ -54,17 +42,15 @@ function App() {
           }
         } else {
           // 開発モード: モックデータ
-          setIsHost(false);
           setMeetingId(`meeting-${Date.now()}`);
         }
       } catch (err) {
         console.error("初期化エラー:", err);
-        setIsHost(false);
         setMeetingId(`meeting-${Date.now()}`);
       }
     };
 
-    checkHostAndMeeting();
+    checkMeeting();
   }, []);
 
   const handleSelectMode = (selectedMode: "measurement" | "host-view") => {
@@ -103,9 +89,7 @@ function App() {
         <h1>Zoom 発話者リアルタイム分析</h1>
       </header>
       <main>
-        {mode === "select" && (
-          <ModeSelector onSelectMode={handleSelectMode} isHost={isHost} />
-        )}
+        {mode === "select" && <ModeSelector onSelectMode={handleSelectMode} />}
         {mode === "measurement-setup" && (
           <MeasurementSetup
             onStart={handleMeasurementStart}
@@ -121,9 +105,7 @@ function App() {
             onBack={handleBack}
           />
         )}
-        {mode === "host-view" && (
-          <HostViewMode meetingId={meetingId} onBack={handleBack} />
-        )}
+        {mode === "host-view" && <HostViewMode onBack={handleBack} />}
       </main>
     </div>
   );
