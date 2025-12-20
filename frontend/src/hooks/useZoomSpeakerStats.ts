@@ -18,6 +18,7 @@ export function useZoomSpeakerStats() {
   const previousSpeakerIdRef = useRef<string | null>(null);
   const lastActiveSpeakerTimeRef = useRef<number | null>(null); // 最後にisSpeaking === trueだった時刻（5秒タイマーの基準時刻）
   const sdkRef = useRef<typeof zoomSdk | null>(null); // config()を実行したSDKインスタンスを保持
+  const configSuccessRef = useRef<boolean>(false); // config()の成功状態を保持
 
   /**
    * ログを追加する（アプリ内ログとコンソールログの両方に出力）
@@ -345,7 +346,7 @@ export function useZoomSpeakerStats() {
                 : "不明"
             }`
           );
-          configSuccess = true;
+          configSuccessRef.current = true;
           addLog(`🔵 configSuccessをtrueに設定しました`);
         } catch (configError) {
           // config()が失敗した場合、古い形式を試す
