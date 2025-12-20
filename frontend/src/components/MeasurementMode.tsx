@@ -7,6 +7,11 @@ import {
   getAvailableGroupIds,
   type GroupData,
 } from "../utils/csvParser";
+import {
+  calculateAverageSpeakingTime,
+  calculateSpeakingShare,
+  calculateBalanceScore,
+} from "../utils/statistics";
 import styles from "./MeasurementMode.module.css";
 
 interface MeasurementModeProps {
@@ -35,6 +40,20 @@ export function MeasurementMode({
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
 
+  /**
+   * 参加者データに詳細統計を追加
+   */
+  const enrichParticipantsWithStats = (
+    participants: ParticipantStats[]
+  ): ParticipantStats[] => {
+    return participants.map((participant) => ({
+      ...participant,
+      averageSpeakingTimeMs: calculateAverageSpeakingTime(participant),
+      speakingShare: calculateSpeakingShare(participant, participants),
+      balanceScore: calculateBalanceScore(participant, participants),
+    }));
+  };
+
   // 10秒ごとにDBに保存
   useEffect(() => {
     if (!isRecording) return;
@@ -50,12 +69,14 @@ export function MeasurementMode({
         console.log(
           `[MeasurementMode] 定期保存開始: 参加者数=${participants.length}`
         );
+        // 詳細統計を計算して追加
+        const enrichedParticipants = enrichParticipantsWithStats(participants);
         await saveRoomStats({
           roomId,
           meetingId,
           meetingName,
           roomName,
-          participants: participants,
+          participants: enrichedParticipants,
           recordedAt: Date.now(),
         });
         setLastSavedAt(Date.now());
@@ -77,12 +98,14 @@ export function MeasurementMode({
   useEffect(() => {
     return () => {
       if (isRecording && participants.length > 0) {
+        // 詳細統計を計算して追加
+        const enrichedParticipants = enrichParticipantsWithStats(participants);
         saveRoomStats({
           roomId,
           meetingId,
           meetingName,
           roomName,
-          participants: participants,
+          participants: enrichedParticipants,
           recordedAt: Date.now(),
         }).catch((err) => {
           console.error("最終保存エラー:", err);
@@ -99,12 +122,14 @@ export function MeasurementMode({
     // 最終保存
     if (participants.length > 0) {
       try {
+        // 詳細統計を計算して追加
+        const enrichedParticipants = enrichParticipantsWithStats(participants);
         await saveRoomStats({
           roomId,
           meetingId,
           meetingName,
           roomName,
-          participants: participants,
+          participants: enrichedParticipants,
           recordedAt: Date.now(),
         });
         setLastSavedAt(Date.now());

@@ -8,6 +8,9 @@ export interface ParticipantStats {
   totalSpeakingMs: number;
   isSpeaking: boolean;
   lastStartedSpeakingAt: number | null; // タイムスタンプ（ミリ秒）
+  averageSpeakingTimeMs?: number; // 平均発話時間（ミリ秒）
+  speakingShare?: number; // 発話シェア（0-100のパーセンテージ）
+  balanceScore?: number; // バランススコア（0-100）
 }
 
 /**
