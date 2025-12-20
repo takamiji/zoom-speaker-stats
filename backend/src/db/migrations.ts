@@ -8,9 +8,10 @@ export async function createSchema(): Promise<void> {
   try {
     await client.query("BEGIN");
 
-    // participant_statsテーブルの作成
+    // participant_statsテーブルの作成（既存のテーブルを削除してから作成）
+    await client.query(`DROP TABLE IF EXISTS participant_stats CASCADE`);
     await client.query(`
-      CREATE TABLE IF NOT EXISTS participant_stats (
+      CREATE TABLE participant_stats (
         id SERIAL PRIMARY KEY,
         meeting_name VARCHAR(255) NOT NULL,
         room_name VARCHAR(255) NOT NULL,
@@ -22,13 +23,15 @@ export async function createSchema(): Promise<void> {
         speaking_share DECIMAL(5,2),
         balance_score INTEGER,
         recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(meeting_name, room_name, participant_id)
       )
     `);
 
-    // room_overall_statsテーブルの作成
+    // room_overall_statsテーブルの作成（既存のテーブルを削除してから作成）
+    await client.query(`DROP TABLE IF EXISTS room_overall_stats CASCADE`);
     await client.query(`
-      CREATE TABLE IF NOT EXISTS room_overall_stats (
+      CREATE TABLE room_overall_stats (
         id SERIAL PRIMARY KEY,
         meeting_name VARCHAR(255) NOT NULL,
         room_name VARCHAR(255) NOT NULL,
@@ -36,7 +39,8 @@ export async function createSchema(): Promise<void> {
         total_speaking_time_ms BIGINT NOT NULL DEFAULT 0,
         average_balance_score DECIMAL(5,2),
         recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(meeting_name, room_name)
       )
     `);
 
@@ -93,4 +97,3 @@ export async function runMigrations(): Promise<void> {
     throw error;
   }
 }
-
