@@ -41,6 +41,14 @@ export function MeasurementMode({
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
 
+  // 最新のparticipantsを保持するためのref
+  const participantsRef = useRef<ParticipantStats[]>([]);
+
+  // participantsが更新されたらrefも更新
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
+
   /**
    * 参加者データに詳細統計を追加
    */
